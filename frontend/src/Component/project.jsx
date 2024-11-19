@@ -10,6 +10,16 @@ function Project()
     const [project, setProject] = useState({ name: '', desc: '', owner: '' });
     const [owners, setOwners] = useState([]);  // State to store owners list
     const [projects, setProjects] = useState([]);
+    var userdetail = sessionStorage.getItem("userdetail");
+    if (userdetail) {
+        // Parse the JSON string into a JavaScript object
+        var parsedUserDetail = JSON.parse(userdetail);
+      
+        // Access the user_role property
+        var userrole = parsedUserDetail.user_role;
+        var userid = parsedUserDetail.userid;
+
+    }
 
     useEffect(() => {
         const script = document.createElement('script');
@@ -21,16 +31,23 @@ function Project()
           // Redirect to sign-in page if user is not logged in
           navigate("/sign-in");
         }
+      
         const fetchProjects = async () => {
             try {
-              const response = await axios.get(`${server}/api/project/allprojects`);
+              const response = await axios.get(`${server}/api/project/allprojects`,{
+                params: {
+                  userrole,
+                  userid,
+                },
+              });
               setProjects(response.data); // Set the response data to state
             } catch (error) {
               console.error('Error fetching projects:', error);
             }
           };
+
+          
       
-          fetchProjects();
         const fetchOwners = async () => {
             try {
               const response = await axios.get(`${server}/api/getowner`); // Update the URL as per your API
@@ -40,7 +57,11 @@ function Project()
             }
           };
       
-          fetchOwners();
+          
+         
+                fetchProjects();
+                fetchOwners();
+            
       }, [navigate]);
      
       const handleSubmit = async (e) => {
@@ -52,6 +73,7 @@ function Project()
         } catch (error) {
           alert('Error registering project');
         }
+       
       };
     
   return (
@@ -782,9 +804,12 @@ function Project()
                                         </div>
                                     </div>
                                 </div>
+                                {userrole === 1 ? (
                                 <div class="pl-3 border-left btn-new">
                                     <a href="#" class="btn btn-primary" data-target="#new-project-modal" data-toggle="modal">New Project</a>
                                 </div>
+                                ):null}
+                                   
                             </div>
                         </div>
                     </div>

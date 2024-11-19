@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const user = require('../controller/user');
 const project = require('../controller/project');
+const fp = require('../controller/fp');
 
 // Route to register a new user
 router.post('/register', user.registerUser);
@@ -15,8 +16,13 @@ router.get('/login', user.loginuser);
 router.post('/project/createproject', project.createproject);
 router.get('/getowner', user.getowners);
 router.get('/project/allprojects', project.allproject );
+router.get('/project/devprojects', project.allproject );
+
 router.post('/project/team', project.team);
 router.get('/developers', user.getdeveloper);
 router.post('/project/assignteam', project.team);
 router.get('/getdeveloper', user.getdeveloper);
+router.post('/project/:project_id/insertinput', fp.insertinput);
+router.get('/project/:project_id/getinputs', fp.getinputs);
+router.post('/project/:project_id/updateinput', fp.updatecomplexity);
 module.exports = router;

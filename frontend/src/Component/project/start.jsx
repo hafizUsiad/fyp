@@ -1,17 +1,160 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState,useEffect,useCallback} from 'react';
 import axios from 'axios';
 import server from "../../serverconfig";
 import { useNavigate } from 'react-router-dom';
+import server_url from '../../serverconfig';
 
 function Startproject({ projectId })
 {
     const navigate = useNavigate();
-    
+    var userdetail = sessionStorage.getItem("userdetail");
+    if (userdetail) {
+        // Parse the JSON string into a JavaScript object
+        var parsedUserDetail = JSON.parse(userdetail);
+      
+        // Access the user_role property
+        var userrole = parsedUserDetail.user_role;
+        var userid = parsedUserDetail.userid;
+
+    }
     const [project, setProject] = useState({ name: '', desc: '', owner: '' });
     const [owners, setOwners] = useState([]);  // State to store owners list
     const [projects, setProjects] = useState([]);
+    const [inputss, setInputss] = useState([]);
+
     const [developers, setDevelopers] = useState([]);
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [selectedDevelopers, setSelectedDevelopers] = useState([]);
+    const styles = {
+        tableHeader: {
+          padding: '5px',
+          textAlign: 'left',
+          border: '1px solid #ddd',
+        },
+        tableCell: {
+          padding: '5px',
+          textAlign: 'left',
+        },
+        editButton: {
+          padding: '5px 10px',
+          backgroundColor: '#ffa500',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          marginRight: '5px',
+        },
+        removeButton: {
+          padding: '5px 10px',
+          backgroundColor: '#ff0000',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+        },
+      };
+    const [inputs, setInputs] = useState({
+        EI: [],
+        EO: [],
+        EQ: [],
+        ILF: [],
+        EIF: [],
+      });
+      const [currentInput, setCurrentInput] = useState('');
+      const [currentCategory, setCurrentCategory] = useState('EI'); // Default category
+      const [editing, setEditing] = useState({ type: '', index: -1 });
+      const [selectedOption, setSelectedOption] = useState('');
+
+      const handleInput = useCallback(() => {
+        if (currentInput.trim() !== '') {
+          setInputs((prevInputs) => {
+            const updated = { ...prevInputs };
+      
+            if (editing.type && editing.index > -1) {
+              // Update the existing entry for editing
+              updated[editing.type][editing.index] = currentInput.trim();
+            } else {
+              // Add only if the input doesn't already exist in the current category
+              if (!updated[currentCategory].includes(currentInput.trim())) {
+                updated[currentCategory].push(currentInput.trim());
+              }
+            }
+      
+            return updated;
+          });
+      
+          // Clear input and editing state
+          setCurrentInput('');
+          setEditing({ type: '', index: -1 });
+        }
+      }, [currentInput, currentCategory, editing]);
+      
+    
+      const handleEdit = (type, index, value) => {
+        setCurrentInput(value);
+        setEditing({ type, index });
+        setCurrentCategory(type);
+      };
+    
+      const handleRemove = (type, index) => {
+        setInputs((prevInputs) => ({
+          ...prevInputs,
+          [type]: prevInputs[type].filter((_, i) => i !== index),
+        }));
+      };
+    
+      const handleSaveInputs = async () => {
+        try {
+            await axios.post(`${server_url}/api/project/1/insertinput`, inputs);
+            alert('FP Inputs saved successfully!');
+       
+        } catch (error) {
+          alert('Error saving FP inputs');
+          console.error(error);
+        }
+      };
+    
+      const renderHistoryTable = () => {
+        const combinedHistory = Object.entries(inputs)
+          .flatMap(([type, values]) =>
+            values.map((value) => ({ type, value }))
+          );
+    
+        return (
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f4f4f4' }}>
+                <th style={styles.tableHeader}>Category</th>
+                <th style={styles.tableHeader}>Input Name</th>
+                <th style={styles.tableHeader}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {combinedHistory.map((entry, index) => (
+                <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={styles.tableCell}>{entry.type}</td>
+                  <td style={styles.tableCell}>{entry.value}</td>
+                  <td style={styles.tableCell}>
+                    <button
+                      onClick={() => handleEdit(entry.type, inputs[entry.type].indexOf(entry.value), entry.value)}
+                      style={styles.editButton}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleRemove(entry.type, inputs[entry.type].indexOf(entry.value))}
+                      style={styles.removeButton}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+      };
     useEffect(() => {
         const script = document.createElement('script');
         script.src = `${process.env.PUBLIC_URL}/assets/js/app.js`;
@@ -40,6 +183,18 @@ function Startproject({ projectId })
               alert('Error fetching owners');
             }
           };
+          const fetchInputs = async () => {
+            try {
+                const response = await axios.get(`${server_url}/api/project/1/getinputs`);
+                setInputss(response.data.data);  // Assuming response.data.data contains the inputs
+                setLoading(false);
+            } catch (err) {
+                setError('Failed to load inputs');
+                setLoading(false);
+            }
+        };
+
+        fetchInputs();
           const fetchDevelopers = async () => {
             try {
               const response = await axios.get(`${server}/api/getdeveloper`);
@@ -52,7 +207,7 @@ function Startproject({ projectId })
           fetchDevelopers();
       
           fetchOwners();
-      }, [navigate]);
+      }, [navigate,projectId]);
      
       // Handle checkbox change
   const handleCheckboxChange = (developerId) => {
@@ -71,7 +226,7 @@ function Startproject({ projectId })
   const handleSubmit2 = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/project/assignteam', {
+      const res = await axios.post(`${server_url}/api/project/assignteam`, {
         projectId,
         developerIds: selectedDevelopers
       });
@@ -874,9 +1029,212 @@ function Startproject({ projectId })
                         </div>
                         <div class="col-sm-9">
                            <div class="tab-content mt-0" id="v-pills-tabContent">
-                              <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel" aria-labelledby="v-pills-home-tab">
-                                 <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
-                              </div>
+                           <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel" aria-labelledby="v-pills-home-tab">
+            {userrole === 1?(
+<select
+value={selectedOption}
+class="form-control col-3"
+onChange={(e) => setSelectedOption(e.target.value)}
+
+>
+<option value="">Select Option</option>
+<option value="FP">Function Points (FP)</option>
+<option value="UC">Usecase (UC)</option>
+<option value="c1b">Cocomo 1 (Basic)</option>
+<option value="c1i">Cocomo 1 (Intermediate)</option>
+<option value="c1a">Cocomo 1 (Advanced)</option>
+<option value="c2">Cocomo 2 (Coco 2)</option>
+<option value="agile">Agile (Ag)</option>
+
+</select>
+
+            ):userrole === 3 ?(
+                <table class="table table-hover">
+                <thead>
+                   <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Complexity</th>
+                      <th scope="col">DET's</th>
+                      <th scope="col">FRT's</th>
+                   </tr>
+                </thead>
+                <tbody>
+                    {inputss.map((input) => (
+                        <tr key={input.input_id}>
+                            <td scope='row'>{input.input_id}</td>
+                            <td>{input.input_name}</td>
+                            <td>
+                                {/* Priority Dropdown */}
+                                <select 
+                                    value={input.priority} 
+                                    class="form-control"
+
+                                    onChange={(e) => handleSelectChange(e, input.input_id, 'complexity')}
+                                >
+                                    <option disabled selected>Select Complexity</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </td>
+                            <td>
+                                {/* Status Dropdown */}
+                                <select 
+                                    value={input.det} 
+                                    class="form-control"
+                                    onChange={(e) => handleSelectChange(e, input.input_id, 'det')}
+                                >
+                                    <option disabled selected>Select DETS's</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </td>
+                            <td>
+                                {/* Type Dropdown */}
+                                <select 
+                                    value={input.frt}      
+                                    class="form-control"
+
+                                    onChange={(e) => handleSelectChange(e, input.input_id, 'frt')}
+                                >
+                                    <option disabled selected>Select FRT's</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+             </table>
+            ):null }
+            
+           
+            {selectedOption === 'FP' ? (
+  // If "FP" is selected, show the Function Point Input Manager
+  <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+    <h4
+    style= 
+    { {
+         marginBottom:"10px",
+     }}
+    >Function Point Input Manager</h4>
+    <div className="input-group-prepend">
+      <select
+        id="category"
+        value={currentCategory}
+        className="form-control col-3"
+        style= 
+       { {
+            height:"45px",
+            borderRadius:"5px"
+        }}
+        onChange={(e) => setCurrentCategory(e.target.value)}
+      >
+        <option value="EI">External Inputs (EI)</option>
+        <option value="EO">External Outputs (EO)</option>
+        <option value="EQ">External Inquiries (EQ)</option>
+        <option value="ILF">Internal Logical Files (ILF)</option>
+        <option value="EIF">External Interface Files (EIF)</option>
+      </select>
+      <input
+        type="text"
+        value={currentInput}
+        onChange={(e) => setCurrentInput(e.target.value)}
+        placeholder="Enter input value"
+        style= 
+        { {
+            marginLeft:"10px",
+
+             height:"45px",
+             borderRadius:"5px"
+         }}
+        className="form-control col-3"
+      />
+      <button
+        onClick={handleInput}
+        style={{
+            marginLeft:"10px",
+          height:"43x",
+          padding: '0px 20px',
+          fontSize: '12px',
+          cursor: 'pointer',
+          backgroundColor: '#2196F3',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+        }}
+      >
+        Add Input
+      </button>
+    </div>
+    {renderHistoryTable()}
+    <button
+      onClick={handleSaveInputs}
+
+      style={{
+        padding: '10px 20px',
+        fontSize: '16px',
+        cursor: 'pointer',
+        backgroundColor: '#2196F3',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        marginTop: '20px',
+      }}
+    >
+      Save 
+    </button>
+  </div>
+) : selectedOption === 'UC' ? (
+  // Else if: specific UI for "OtherOption1"
+  <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+    <h3>Usecase Selected</h3>
+    <p>This is the UI for "Usecase".</p>
+  </div>
+) : selectedOption === 'c1b' ? (
+  // Else if: specific UI for "OtherOption2"
+  <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+    <h3>Cocomo Basic Selected</h3>
+    <p>This is the UI for "Cocomo Basic". Customize as needed.</p>
+  </div>
+) : selectedOption === 'c1i' ? (
+    // Else if: specific UI for "OtherOption2"
+    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+      <h3>Cocomo 1 Intermediate Selected</h3>
+      <p>This is the UI for "Cocomo 1 Intermediate". Customize as needed.</p>
+    </div>
+  ) : selectedOption === 'c1a' ? (
+    // Else if: specific UI for "OtherOption2"
+    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+      <h3>Cocomo 1 Advance Selected</h3>
+      <p>This is the UI for "Cocomo 1 Advance". Customize as needed.</p>
+    </div>
+  ) : selectedOption === 'c2' ? (
+    // Else if: specific UI for "OtherOption2"
+    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+      <h3>Cocomo 2 Selected</h3>
+      <p>This is the UI for "Cocomo2". Customize as needed.</p>
+    </div>
+  ) : selectedOption === 'agile' ? (
+    // Else if: specific UI for "OtherOption2"
+    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+      <h3>Agile Selected</h3>
+      <p>This is the UI for "Agile". Customize as needed.</p>
+    </div>
+  ) : (null
+  // Else: default message for unsupported or unselected options
+//   <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+//     <h3>Option Selected: {selectedOption || 'None'}</h3>
+//     <p>
+//       The selected option is not recognized. Please choose a valid option from
+//       the dropdown.
+//     </p>
+//   </div>
+)}
+</div>
                               <div class="tab-pane fade" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab">
                                  <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
                               </div>
@@ -921,6 +1279,24 @@ function Startproject({ projectId })
     </footer>
     </>
   )
+  async function handleSelectChange(e, inputId, field) {
+    const updatedValue = e.target.value;
+
+    // Optimistically update the UI
+    const updatedInputs = inputs.map(input => 
+        input.input_id === inputId ? { ...input, [field]: updatedValue } : input
+    );
+    setInputs(updatedInputs);
+
+    try {
+        // Send the updated field to the server
+        await axios.post(`${server_url}/api/project/1/updateinput`, { id: inputId, field, value: updatedValue });
+        console.log(`${field} updated successfully!`);
+    } catch (err) {
+        console.error('Error updating field:', err);
+        alert(`Failed to save ${field}`);
+    }
+}
 }
 
 export default Startproject;

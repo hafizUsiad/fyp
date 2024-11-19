@@ -55,9 +55,19 @@ class ProjectController {
   }
   
   async allproject(req, res) {
+    const { userrole, userid } = req.query;
+    console.log(userid,userrole);
     try {
-      const [rows] = await db.execute('SELECT * FROM project');
-      res.json(rows);  // Send back an array of users
+      if(userrole == 3)
+        {
+          const [rows] = await db.execute(`SELECT DISTINCT project.* FROM project JOIN team ON project.project_id = team.project_id WHERE team.developer_id= ${userid}`);
+          res.json(rows);  // Send back an array of users
+        }
+        else if(userrole == 2)
+        {
+          const [rows] = await db.execute('SELECT * FROM project,team where project.project_id = team.project_id');
+          res.json(rows);  // Send back an array of users
+        }
     } catch (error) {
       console.error(error);
       res.status(500).json({ msg: 'Server error' });
