@@ -4,6 +4,7 @@ const router = express.Router();
 const user = require('../controller/user');
 const project = require('../controller/project');
 const fp = require('../controller/fp');
+const msg = require('../controller/message');
 
 // Route to register a new user
 router.post('/register', user.registerUser);
@@ -25,4 +26,7 @@ router.get('/getdeveloper', user.getdeveloper);
 router.post('/project/:project_id/insertinput', fp.insertinput);
 router.get('/project/:project_id/getinputs', fp.getinputs);
 router.post('/project/:project_id/updateinput', fp.updatecomplexity);
+// Add a message
+router.post("/project/:project_id/addmessages", msg.messagesend);
+router.get("/project/:project_id/getmessages", msg.getmessage);
 module.exports = router;

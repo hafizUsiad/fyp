@@ -3,6 +3,7 @@ import axios from 'axios';
 import server from "../../serverconfig";
 import { useNavigate } from 'react-router-dom';
 import server_url from '../../serverconfig';
+import ChatBox from './chat';
 
 function Startproject({ projectId })
 {
@@ -65,6 +66,7 @@ function Startproject({ projectId })
       const [currentCategory, setCurrentCategory] = useState('EI'); // Default category
       const [editing, setEditing] = useState({ type: '', index: -1 });
       const [selectedOption, setSelectedOption] = useState('');
+      const [selectedOption2, setSelectedOption2] = useState('');
 
       const handleInput = useCallback(() => {
         if (currentInput.trim() !== '') {
@@ -238,6 +240,7 @@ function Startproject({ projectId })
      
   return (
     <>
+    <ChatBox />
     <div class="wrapper">
       
       <div class="iq-sidebar  sidebar-default ">
@@ -1031,13 +1034,17 @@ function Startproject({ projectId })
                            <div class="tab-content mt-0" id="v-pills-tabContent">
                            <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel" aria-labelledby="v-pills-home-tab">
             {userrole === 1?(
-<select
+                <div className="input-group-prepend">
+                <select
 value={selectedOption}
 class="form-control col-3"
 onChange={(e) => setSelectedOption(e.target.value)}
-
+style = {{
+    marginLeft:"20px",
+    borderRadius:"5px"
+}}
 >
-<option value="">Select Option</option>
+<option value="">Select The Technique</option>
 <option value="FP">Function Points (FP)</option>
 <option value="UC">Usecase (UC)</option>
 <option value="c1b">Cocomo 1 (Basic)</option>
@@ -1047,7 +1054,26 @@ onChange={(e) => setSelectedOption(e.target.value)}
 <option value="agile">Agile (Ag)</option>
 
 </select>
-
+<p
+style = {{
+    marginTop:"10px",
+    marginLeft:"10px"
+}}
+>To</p>
+<select
+value={selectedOption2}
+class="form-control col-3"
+onChange={(e) => setSelectedOption2(e.target.value)}
+style = {{
+    marginLeft:"10px",
+    borderRadius:"5px"
+}}
+>
+<option value="">Select The Method</option>
+<option value="PP">Poker Planning (PP)</option>
+<option value="FC">Fibonaci Series (FC)</option>
+</select>
+                </div>
             ):userrole === 3 ?(
                 <table class="table table-hover">
                 <thead>

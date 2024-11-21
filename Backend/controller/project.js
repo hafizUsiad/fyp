@@ -67,6 +67,11 @@ class ProjectController {
         {
           const [rows] = await db.execute('SELECT * FROM project,team where project.project_id = team.project_id');
           res.json(rows);  // Send back an array of users
+        }else
+        {
+          const [rows] = await db.execute('SELECT * FROM project');
+          res.json(rows);  // Send back an array of users
+
         }
     } catch (error) {
       console.error(error);
