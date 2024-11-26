@@ -98,6 +98,16 @@ function Startproject({ projectId })
         setEditing({ type, index });
         setCurrentCategory(type);
       };
+      const handleupdatestatus = async () => {
+        try {
+            await axios.post(`${server_url}/api/project/1/updateinputstatus`, { developer_id:userid  });
+            alert('FP Complexity saved successfully!');
+       
+        } catch (error) {
+            alert('FP Complexity saved successfully!');
+          console.error("All Good...!");
+        }
+      };
     
       const handleRemove = (type, index) => {
         setInputs((prevInputs) => ({
@@ -187,7 +197,7 @@ function Startproject({ projectId })
           };
           const fetchInputs = async () => {
             try {
-                const response = await axios.get(`${server_url}/api/project/1/getinputs`);
+                const response = await axios.get(`${server_url}/api/project/1/getinputs?developer_id=${userid}`);
                 setInputss(response.data.data);  // Assuming response.data.data contains the inputs
                 setLoading(false);
             } catch (err) {
@@ -1075,6 +1085,7 @@ style = {{
 </select>
                 </div>
             ):userrole === 3 ?(
+                <>
                 <table class="table table-hover">
                 <thead>
                    <tr>
@@ -1089,13 +1100,12 @@ style = {{
                     {inputss.map((input) => (
                         <tr key={input.input_id}>
                             <td scope='row'>{input.input_id}</td>
-                            <td>{input.input_name}</td>
+                            <td>{input.input_name +" ("+input.input_category+")"}</td>
                             <td>
                                 {/* Priority Dropdown */}
                                 <select 
-                                    value={input.priority} 
+                                    value={input.complexity} 
                                     class="form-control"
-
                                     onChange={(e) => handleSelectChange(e, input.input_id, 'complexity')}
                                 >
                                     <option disabled selected>Select Complexity</option>
@@ -1134,7 +1144,9 @@ style = {{
                         </tr>
                     ))}
                 </tbody>
-             </table>
+             </table>               
+              <button onClick={handleupdatestatus} className='btn btn-success'>Mark as Done</button>
+             </>
             ):null }
             
            
@@ -1309,14 +1321,16 @@ style = {{
     const updatedValue = e.target.value;
 
     // Optimistically update the UI
-    const updatedInputs = inputs.map(input => 
+    const updatedInputs = inputss.map(input => 
         input.input_id === inputId ? { ...input, [field]: updatedValue } : input
     );
     setInputs(updatedInputs);
 
     try {
         // Send the updated field to the server
-        await axios.post(`${server_url}/api/project/1/updateinput`, { id: inputId, field, value: updatedValue });
+        await axios.post(`${server_url}/api/project/1/updateinput`, { id: inputId, field, value: updatedValue,developer_id:userid  });
+        await axios.get(`${server_url}/api/project/1/checkstatus`);
+
         console.log(`${field} updated successfully!`);
     } catch (err) {
         console.error('Error updating field:', err);

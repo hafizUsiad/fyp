@@ -3,9 +3,25 @@ const express = require('express');
 const router = express.Router();
 const user = require('../controller/user');
 const project = require('../controller/project');
+const input = require('../controller/input');
 const fp = require('../controller/fp');
 const msg = require('../controller/message');
+const pokerplanning = require('../controller/pokerplanning');
+const multer = require('multer');
+const path = require('path');
 
+// Configure multer storage and file naming
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/audio'); // Save uploaded files in the 'uploads' folder
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname)); // Unique file name based on timestamp
+  }
+});
+
+// Initialize multer with the defined storage
+const upload = multer({ storage: storage });
 // Route to register a new user
 router.post('/register', user.registerUser);
 
@@ -23,10 +39,13 @@ router.post('/project/team', project.team);
 router.get('/developers', user.getdeveloper);
 router.post('/project/assignteam', project.team);
 router.get('/getdeveloper', user.getdeveloper);
-router.post('/project/:project_id/insertinput', fp.insertinput);
-router.get('/project/:project_id/getinputs', fp.getinputs);
+router.post('/project/:project_id/insertinput', input.insertinput);
+router.get('/project/:project_id/getinputs', input.getinputs);
 router.post('/project/:project_id/updateinput', fp.updatecomplexity);
+router.post('/project/:project_id/updateinputstatus', fp.updatestatus);
 // Add a message
-router.post("/project/:project_id/addmessages", msg.messagesend);
+router.post("/project/:project_id/addmessages", upload.single("audio"), msg.messagesend);
 router.get("/project/:project_id/getmessages", msg.getmessage);
+router.get("/project/:project_id/checkstatus", pokerplanning.checkAllStatus);
+
 module.exports = router;

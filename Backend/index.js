@@ -4,6 +4,8 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config');  // Import DB connection
 const Main = require('./routes/routes');  // Import routes
+const path = require("path");
+
 // const session = require('express-session');
 
 dotenv.config(); // Load environment variables
@@ -19,6 +21,8 @@ app.use(cors());
 
 // Use routes
 app.use('/api', Main);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Session middleware setup
 // app.use(
 //   session({
