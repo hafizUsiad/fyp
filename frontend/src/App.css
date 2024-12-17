@@ -36,3 +36,42 @@
     transform: rotate(360deg);
   }
 }
+.modal-content {
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  border-bottom: 1px solid #ddd;
+}
+
+.modal-body {
+  padding: 15px;
+  background: #f8f9fa;
+}
+
+.chat-message {
+  max-width: 70%;
+
+}
+
+.chat-message-sent {
+  align-self: flex-end;
+  color: #f8f9fa;
+}
+
+.chat-message-received {
+  align-self: flex-start;
+}
+
+.modal-footer {
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+}
+.sky-blue
+{
+  background-color: #6d9edd;
+  
+}

@@ -59,10 +59,10 @@ class Message {
     try {
       // Retrieve messages with pagination
       const [rows] = await db.execute(
-        `SELECT * FROM messages`,
+        `SELECT messages.*, users.name, CONCAT( LEFT(SUBSTRING_INDEX(users.name, ' ', 1), 1), '', LEFT(SUBSTRING_INDEX(users.name, ' ', -1), 1), '' ) AS initials 
+        FROM messages JOIN users ON messages.sender_id = users.userid;`,
         [Number(limit), Number(offset)]
       );
-
       res.status(200).json(rows);  // Send back an array of messages
     } catch (err) {
       console.error("Error retrieving messages: ", err);

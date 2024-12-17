@@ -1,170 +1,314 @@
-const db = require('../config');  // Import the DB connection
+// const { response } = require('express');
+// const db = require('../config'); // Import the DB connection
 
-class ppController { 
+// class ppController {
 //     async checkAllStatus(req, res) {
-//         const projectId = req.params.project_id;  // Get project_id from URL parameter
-    
-//         console.log('Checking status for Project ID:', projectId);  // Log project_id to verify
-    
-//         try {
-//             // Step 1: Get the list of developers for this project
-//             const [teamResult] = await db.execute('SELECT developer_id FROM team WHERE project_id = ?', [projectId]);
-    
-//             if (!teamResult || teamResult.length === 0) {
-//                 return res.status(404).json({ message: 'No developers found for this project.' });
-//             }
-    
-//             // Step 2: Get all inputs for the project
-//             const [inputsResult] = await db.execute('SELECT input_id FROM fp_inputs WHERE project_id = ?', [projectId]);
-    
-//             if (!inputsResult || inputsResult.length === 0) {
-//                 return res.status(404).json({ message: 'No inputs found for this project.' });
-//             }
-    
-//             // Step 3: Get the input IDs and developer IDs
-//             const inputIds = inputsResult.map(input => input.input_id);
-//             const developerIds = teamResult.map(developer => developer.developer_id);
-//             const inputIdsList = inputIds.join(', ');
-// const developerIdsList = developerIds.join(', ');
-//     console.log(inputIds,developerIdsList ,inputIdsList)
-//             // Step 4: Ensure inputIds and developerIds are arrays and not empty
-//             if (!Array.isArray(inputIds) || inputIds.length === 0) {
-//                 return res.status(400).json({ message: 'Invalid or empty input IDs.' });
-//             }
-//             if (!Array.isArray(developerIds) || developerIds.length === 0) {
-//                 return res.status(400).json({ message: 'Invalid or empty developer IDs.' });
-//             }
-    
-//             // Query to check if all developers have marked their inputs as 'Done'
-//             const [statusResult] = await db.execute(`
-//                 SELECT fi.input_id, fi.developer_id, COUNT(*) as doneCount
-//                 FROM fp_inputss fi
-//                 JOIN fp_inputs f ON fi.input_id = f.input_id
-//                 WHERE f.project_id = ? 
-//                 AND fi.status = 'Done' 
-//                 AND fi.input_id IN (?) 
-//                 AND fi.developer_id IN (?)
-//                 GROUP BY fi.input_id, fi.developer_id
-//             `, [projectId, inputIdsList, developerIdsList]);
-    
-//             // Step 5: Check if all inputs are 'Done' by all developers
-//             let allInputsDone = true;
-    
-//             // Create a map to track the 'Done' counts for each input
-//             const doneCounts = {};
-//             statusResult.forEach(status => {
-//                 if (!doneCounts[status.input_id]) {
-//                     doneCounts[status.input_id] = new Set();
-//                 }
-//                 doneCounts[status.input_id].add(status.developer_id);
-//             });
-   
-//             // Check if every input has all the developers marked as 'Done'
-//             for (const inputId of inputIds) {
-   
+//         const projectId = req.params.project_id;
+//         const id = req.query;
 
-//                 if (!doneCounts[inputId] || doneCounts[inputId].size !== developerIds.length) {
-//                     allInputsDone = false;
-//                     break;
-//                 }
-//             }
-    
-//             // Log the message based on whether all inputs are 'Done' for all developers
+//         console.log('Checking status for Project ID:', projectId);
+
+//         try {
+//             const [teamResult] = await db.execute('SELECT developer_id FROM team WHERE project_id = ?', [projectId]);
+//             if (!teamResult.length) return res.status(404).json({ message: 'No developers found for this project.' });
+
+//             const [inputsResult] = await db.execute('SELECT input_id FROM inputs WHERE project_id = ?', [projectId]);
+//             if (!inputsResult.length) return res.status(404).json({ message: 'No inputs found for this project.' });
+
+//             const developerIds = teamResult.map(d => d.developer_id);
+//             const totalInputs = developerIds.length;
+
+//             const [statusResult] = await db.execute(`
+//                 SELECT COUNT(status) AS cs
+//                 FROM fp_inputss
+//                 LEFT JOIN inputs ON inputs.input_id = fp_inputss.input_id
+//                 WHERE inputs.project_id = ? AND status = 'done' AND fp_inputss.input_id = ?;
+//             `, [projectId, id.id]);
+
+//             const allInputsDone = totalInputs.toString() === statusResult[0].cs.toString();
+
 //             if (allInputsDone) {
-//                 console.log(`All inputs for Project ID ${projectId} have been marked as 'Done' by all developers!`);
+//                 try {
+//                     const [responsesave] = await db.execute(`
+//                         SELECT fp_inputss.developer_id, fp_inputss.complexity, users.name AS developer_name
+//                         FROM fp_inputss
+//                         LEFT JOIN inputs ON inputs.input_id = fp_inputss.input_id
+//                         LEFT JOIN users ON users.userid = fp_inputss.developer_id
+//                         WHERE inputs.project_id = ? AND status = 'done' AND fp_inputss.input_id = ?;
+//                     `, [projectId, id.id]);
+                    
+//                     // Build the formatted message
+//                     let message = `This is System generated Message\nTeam Responses For Input No:${id.id}:\n`;
+                    
+//                     responsesave.forEach(record => {
+//                         message += `Developer ${record.developer_name}: ${record.complexity} Complexity\n`;
+//                     });
+//                      await db.execute(`
+//                         INSERT INTO messages 
+//                         (sender_id, project_id, message_text, message_type, timestamp) 
+//                         VALUES (?, ?, ?, ?, NOW())
+//                     `, [12, projectId, message, 'text']);                  
+//                     const response = await this.finalvalue(id,projectId);
+//                     console.log('Response from finalvalue:', response);
+//                     console.log(`All inputs for Project ID ${projectId} have been marked as 'Done' by all developers!`);
+//                 } catch (err) {
+//                     console.error('Error in finalvalue:', err.message);
+//                 }
 //             } else {
 //                 console.log(`Not all developers have marked their inputs as 'Done' for Project ID ${projectId}.`);
 //             }
-    
-//             // Respond back to the client
-//             res.status(200).json({
-//                 message: 'Status check completed successfully.',
-//                 allInputsDone
-//             });
-    
+
+//             res.status(200).json({ message: 'Status check completed successfully.', allInputsDone,success: true,result:response});
 //         } catch (err) {
 //             console.error('Database Error:', err);
 //             res.status(500).json({ message: 'Error checking status', error: err.message });
 //         }
 //     }
+
+//     async finalvalue(id,projectId) {
+//         try {
+//             const [result] = await db.execute(`
+//                 UPDATE inputs SET complexity = (
+//                     SELECT complexity FROM fp_inputss
+//                     WHERE input_id = ? AND status = 'done' AND complexity IS NOT NULL
+//                     GROUP BY complexity
+//                     HAVING COUNT(complexity) * 100.0 / (
+//                         SELECT COUNT(complexity) FROM fp_inputss
+//                         WHERE input_id = ? AND status = 'done' AND complexity IS NOT NULL
+//                     ) > 50 LIMIT 1
+//                 ) WHERE input_id = ?;
+//             `, [id.id, id.id, id.id]);
+
+//             console.log('Final Value Updated:', result);
+//             // Check if any rows were affected (updated)
+//         if (result.changedRows === 0 ) {
+//             const svc = await this.saveDeveloperComplexity(projectId,id.id);
+//             await db.execute(`update fp_inputss set status = '',spell=spell+1 where input_id = ${id.id}`);
+//             console.log('No updates were made. The conditions for updating were not met.');
+//             return { message: 'No update performed: conditions not met.' ,result:svc};
+//         }
+//             return result;
+//         } catch (err) {
+//             console.error('Error in finalvalue:', err.message);
+//             throw err;
+//         }
+//     }
+
+//     async saveDeveloperComplexity(projectId, inputid) {
+//         try {
+//             // Step 1: Identify the developer with the most distinct complexity
+//             const [result] = await db.execute(`
+//                 SELECT developer_id, complexity 
+//                 FROM fp_inputss 
+//                 WHERE input_id = ? 
+//                 AND complexity NOT IN (
+//                     SELECT complexity 
+//                     FROM fp_inputss 
+//                     GROUP BY complexity 
+//                     HAVING COUNT(*) > 1
+//                 );
+//             `, [inputid]);
     
-async checkAllStatus(req, res) {
-    const projectId = req.params.project_id;  // Get project_id from URL parameter
+//             if (result.length === 0) {
+//                 // If no result, return a message indicating no data found
+//                 return { message: 'No distinct complexity found', data: null };
+//             }
+    
+//             // Step 2: Process each developer and complexity
+//             const check = [];
+//             for (const row of result) {
+//                 const { developer_id, complexity } = row;
+    
+//                 // Run the insert query for each developer and complexity
+//                 const [insertResult] = await db.execute(`
+//                     INSERT INTO messages 
+//                     (sender_id, project_id, message_text, message_type, timestamp) 
+//                     VALUES (?, ?, ?, ?, NOW());
+//                 `, [developer_id, projectId, `Kindly justify your response: ${complexity}`, 'text']);
+    
+//                 if (insertResult.affectedRows > 0) {
+//                     check.push(developer_id);
+//                 }
+//             }
+    
+//             console.log('Message table updated with developer_id and complexity:', check);
+    
+//             // Return success response with the inserted developers
+//             return { message: 'Developer complexity saved successfully', devresponse: check };
+//         } catch (err) {
+//             console.error('Error saving developer complexity:', err.message);
+//             // Return error response
+//             return { message: 'Error saving developer complexity', error: err.message };
+//         }
+//     }
+    
+    
+// }
 
-    console.log('Checking status for Project ID:', projectId);  // Log project_id to verify
+// module.exports = new ppController();
 
-    try {
-        // Step 1: Get the list of developers for this project
-        const [teamResult] = await db.execute('SELECT developer_id FROM team WHERE project_id = ?', [projectId]);
+const { response } = require('express');
+const db = require('../config'); // Import the DB connection
 
-        if (!teamResult || teamResult.length === 0) {
-            return res.status(404).json({ message: 'No developers found for this project.' });
-        }
+class ppController {
+    async checkAllStatus(req, res) {
+        const projectId = req.params.project_id;
+        const id = req.query;
 
-        // Step 2: Get all inputs for the project
-        const [inputsResult] = await db.execute('SELECT input_id FROM inputs WHERE project_id = ?', [projectId]);
+        console.log('Checking status for Project ID:', projectId);
 
-        if (!inputsResult || inputsResult.length === 0) {
-            return res.status(404).json({ message: 'No inputs found for this project.' });
-        }
+        try {
+            const [teamResult] = await db.execute('SELECT developer_id FROM team WHERE project_id = ?', [projectId]);
+            if (!teamResult.length) return res.status(404).json({ message: 'No developers found for this project.' });
 
-        // Step 3: Get the input IDs and developer IDs
-        const inputIds = inputsResult.map(input => input.input_id);
-        const developerIds = teamResult.map(developer => developer.developer_id);
-        const developerIdsList = developerIds.join(', ');
-        const inputIdsList = inputIds.join(', ');
-        // Step 4: Ensure inputIds and developerIds are arrays and not empty
-        if (!Array.isArray(inputIds) || inputIds.length === 0) {
-            return res.status(400).json({ message: 'Invalid or empty input IDs.' });
-        }
-        if (!Array.isArray(developerIds) || developerIds.length === 0) {
-            return res.status(400).json({ message: 'Invalid or empty developer IDs.' });
-        }
+            const [inputsResult] = await db.execute('SELECT input_id FROM inputs WHERE project_id = ?', [projectId]);
+            if (!inputsResult.length) return res.status(404).json({ message: 'No inputs found for this project.' });
 
-        // Query to check if all developers have marked their inputs as 'Done'
-        const [statusResult] = await db.execute(`
-           SELECT count(status) as cs FROM fp_inputss LEFT join inputs on inputs.input_id = fp_inputss.input_id where inputs.project_id = ? 
-           and status = 'done';
+            const developerIds = teamResult.map(d => d.developer_id);
+            const totalInputs = developerIds.length;
 
-        `, [projectId]);
+            const [statusResult] = await db.execute(`
+                SELECT COUNT(status) AS cs
+                FROM fp_inputss
+                LEFT JOIN inputs ON inputs.input_id = fp_inputss.input_id
+                WHERE inputs.project_id = ? AND status = 'done' AND fp_inputss.input_id = ?;
+            `, [projectId, id.id]);
 
-        // Log the status result to debug
-        console.log("Status Result:", statusResult[0].cs);
+            const allInputsDone = totalInputs.toString() === statusResult[0].cs.toString();
 
-        // Step 5: Check if all inputs are 'Done' by all developers
-        let allInputsDone = false;
+            let finalResponse = { allInputsDone };
 
-        // Create a map to track the 'Done' counts for each inpu
-        console.log(inputIds.length,developerIds.length)
-        const totalinputs = (inputIds.length*developerIds.length);
-        // Check if every input has all the developers marked as 'Done'
-        console.log(totalinputs.toString())
-            if (totalinputs.toString() == statusResult[0].cs) {
-                allInputsDone = true;
-                // Exit the loop as soon as we find an incomplete input
+            if (allInputsDone) {
+                try {
+                    const [responsesave] = await db.execute(`
+                        SELECT fp_inputss.developer_id, fp_inputss.complexity, users.name AS developer_name
+                        FROM fp_inputss
+                        LEFT JOIN inputs ON inputs.input_id = fp_inputss.input_id
+                        LEFT JOIN users ON users.userid = fp_inputss.developer_id
+                        WHERE inputs.project_id = ? AND status = 'done' AND fp_inputss.input_id = ?;
+                    `, [projectId, id.id]);
+                    
+                    // Build the formatted message
+                    let message = `This is System generated Message\nTeam Responses For Input No:${id.id}:\n`;
+                    
+                    responsesave.forEach(record => {
+                        message += `Developer ${record.developer_name}: ${record.complexity} Complexity\n`;
+                    });
+
+                    await db.execute(`
+                        INSERT INTO messages 
+                        (sender_id, project_id, message_text, message_type, timestamp) 
+                        VALUES (?, ?, ?, ?, NOW())
+                    `, [12, projectId, message, 'text']);                  
+
+                    const finalValueResponse = await this.finalvalue(id, projectId);
+                    finalResponse.finalValue = finalValueResponse;
+                    console.log('All inputs for Project ID', projectId, 'have been marked as "Done" by all developers!');
+                } catch (err) {
+                    console.error('Error in finalvalue:', err.message);
+                    finalResponse.finalValue = { message: 'Error in finalvalue', error: err.message };
+                }
+            } else {
+                console.log('Not all developers have marked their inputs as "Done" for Project ID', projectId);
+                finalResponse.finalValue = { message: 'Not all inputs are marked as "Done"' };
             }
-        
 
-        // Log the message based on whether all inputs are 'Done' for all developers
-        if (allInputsDone) {
-            console.log(`All inputs for Project ID ${projectId} have been marked as 'Done' by all developers!`);
-        } else {
-            console.log(`Not all developers have marked their inputs as 'Done' for Project ID ${projectId}.`);
+            const developerComplexityResponse = await this.saveDeveloperComplexity(projectId, id.id);
+            finalResponse.developerComplexity = developerComplexityResponse;
+
+            res.status(200).json({ 
+                message: 'Status check completed successfully.', 
+                success: true,
+                result: finalResponse
+            });
+        } catch (err) {
+            console.error('Database Error:', err);
+            res.status(500).json({ message: 'Error checking status', error: err.message });
         }
+    }
 
-        // Respond back to the client
-        res.status(200).json({
-            message: 'Status check completed successfully.',
-            allInputsDone
-        });
+    async finalvalue(id, projectId) {
+        try {
+            const [result] = await db.execute(`
+                UPDATE inputs SET complexity = (
+                    SELECT complexity FROM fp_inputss
+                    WHERE input_id = ? AND status = 'done' AND complexity IS NOT NULL
+                    GROUP BY complexity
+                    HAVING COUNT(complexity) * 100.0 / (
+                        SELECT COUNT(complexity) FROM fp_inputss
+                        WHERE input_id = ? AND status = 'done' AND complexity IS NOT NULL
+                    ) > 50 LIMIT 1
+                ) WHERE input_id = ?;
+            `, [id.id, id.id, id.id]);
 
-    } catch (err) {
-        console.error('Database Error:', err);
-        res.status(500).json({ message: 'Error checking status', error: err.message });
+            console.log('Final Value Updated:', result);
+            
+            if (result.affectedRows === 0) {
+                const svc = await this.saveDeveloperComplexity(projectId, id.id);
+                await db.execute(`UPDATE fp_inputss SET status = '', spell = spell + 1 WHERE input_id = ?`, [id.id]);
+                console.log('No updates were made. The conditions for updating were not met.');
+                return { message: 'No update performed: conditions not met.', result: svc };
+            }
+
+            return result;
+        } catch (err) {
+            console.error('Error in finalvalue:', err.message);
+            throw err;
+        }
+    }
+
+    async saveDeveloperComplexity(projectId, inputid) {
+        try {
+// SELECT developer_id, complexity 
+// FROM fp_inputss 
+// WHERE input_id = ? 
+// AND complexity NOT IN (
+//     SELECT complexity 
+//     FROM fp_inputss 
+//     GROUP BY complexity 
+//     HAVING COUNT(*) > 1
+// );
+
+            const [result] = await db.execute(`
+            SELECT DISTINCT developer_id, complexity
+                FROM fp_inputss
+                WHERE input_id = ? 
+                AND complexity NOT IN (
+                    SELECT complexity 
+                    FROM fp_inputss
+                    WHERE input_id = ?
+                    GROUP BY complexity
+                    HAVING COUNT(*) > 1
+            );
+            `, [inputid,inputid]);
+
+            if (result.length === 0) {
+                return { message: 'No distinct complexity found', data: null };
+            }
+
+            const check = [];
+            for (const row of result) {
+                const { developer_id, complexity } = row;
+
+                const [insertResult] = await db.execute(`
+                    INSERT INTO messages 
+                    (sender_id, project_id, message_text, message_type, timestamp) 
+                    VALUES (?, ?, ?, ?, NOW());
+                `, [developer_id, projectId, `Kindly justify your response: ${complexity}`, 'text']);
+
+                if (insertResult.affectedRows > 0) {
+                    check.push(developer_id);
+                }
+            }
+
+            console.log('Message table updated with developer_id and complexity:', check);
+
+            return { message: 'Developer complexity saved successfully', devresponse: check };
+        } catch (err) {
+            console.error('Error saving developer complexity:', err.message);
+            return { message: 'Error saving developer complexity', error: err.message };
+        }
     }
 }
 
-    
-}
-
-module.exports = new ppController(); 
+module.exports = new ppController();

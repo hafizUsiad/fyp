@@ -8,6 +8,17 @@ import ChatBox from './chat';
 function Startproject({ projectId })
 {
     const navigate = useNavigate();
+ // Initialize the state for the switches
+ const [switchState, setSwitchState] = useState({
+    1: false,  // Fibonacci 1
+    2: false,  // Fibonacci 2
+    3: false,  // Fibonacci 3
+    5: false,  // Fibonacci 5
+    8: false,  // Fibonacci 8
+    13: false, // Fibonacci 13
+  });
+  const [assigned_weights, setAssignedWeights] = useState([]); // Default to empty array
+
     var userdetail = sessionStorage.getItem("userdetail");
     if (userdetail) {
         // Parse the JSON string into a JavaScript object
@@ -18,7 +29,7 @@ function Startproject({ projectId })
         var userid = parsedUserDetail.userid;
 
     }
-    const [project, setProject] = useState({ name: '', desc: '', owner: '' });
+    const [project, setProject] = useState();
     const [owners, setOwners] = useState([]);  // State to store owners list
     const [projects, setProjects] = useState([]);
     const [inputss, setInputss] = useState([]);
@@ -66,8 +77,12 @@ function Startproject({ projectId })
       const [currentCategory, setCurrentCategory] = useState('EI'); // Default category
       const [editing, setEditing] = useState({ type: '', index: -1 });
       const [selectedOption, setSelectedOption] = useState('');
-      const [selectedOption2, setSelectedOption2] = useState('');
-
+      const [selectedOption2, setSelectedOption2] = useState('not selected');
+      var inputidd = 0;
+      const selectedSwitches = Object.keys(switchState)
+      .filter(key => switchState[key])  // Filter out unchecked switches
+      .map(Number);  // Convert the keys back to numbers
+    
       const handleInput = useCallback(() => {
         if (currentInput.trim() !== '') {
           setInputs((prevInputs) => {
@@ -98,14 +113,34 @@ function Startproject({ projectId })
         setEditing({ type, index });
         setCurrentCategory(type);
       };
+      const fetchInputs = async () => {
+        try {
+            const response = await axios.get(`${server_url}/api/project/1/getinputs?developer_id=${userid}`);
+
+            setInputss(response.data.data);  // Assuming response.data.data contains the inputs
+            setProject(response.data.projectdetail[0]);
+            console.log(response.data.weights);
+            if(response.data.weights)
+            {
+                setAssignedWeights(response.data.weights);
+            }
+            setLoading(false);
+        } catch (err) {
+            setError('Failed to load inputs');
+            setLoading(false);
+        }
+    };
       const handleupdatestatus = async () => {
         try {
-            await axios.post(`${server_url}/api/project/1/updateinputstatus`, { developer_id:userid  });
+            var currentinputid = document.getElementById("inputid").value;
+            await axios.post(`${server_url}/api/project/1/updateinputstatus`, { developer_id:userid ,input_id:currentinputid });
             alert('FP Complexity saved successfully!');
-       
-        } catch (error) {
-            alert('FP Complexity saved successfully!');
-          console.error("All Good...!");
+            fetchInputs();
+        } 
+        catch (error) {
+            var currentinputid = document.getElementById("inputid").value;
+            alert('FP Complexity not saved successfully!');
+          console.error("All Good...!"+error);
         }
       };
     
@@ -116,10 +151,49 @@ function Startproject({ projectId })
         }));
       };
     
+
+   
+  
+    // Track if the data has been successfully saved
+    const [isSaved, setIsSaved] = useState(false);
+  
+    // Handle the switch state change
+    const handleSwitchChange = (e, number) => {
+      setSwitchState({
+        ...switchState,
+        [number]: e.target.checked,
+      });
+    };
+  
+    // Send the data to the backend
+    const handleSaveChanges = async () => {
+      
+      if (selectedSwitches.length === 0) {
+        // If no switches are selected, do not proceed
+        alert("Please select at least one Fibonacci number to proceed.");
+        return;
+      }
+  
+      try {
+        await axios.post(`${server_url}/api/project/1/insertinput`, {inputs,selectedOption2,selectedOption,selectedSwitches});
+        
+        setIsSaved(true); // Mark as saved
+        alert("Data sent successfully!");
+      } catch (error) {
+        console.error("Error sending data:", error);
+        alert("Failed to send data");
+      }
+    };
+  
+    // Check if at least one switch is selected to enable "Save changes"
+    const isFormValid = Object.values(switchState).some(isChecked => isChecked);
+
       const handleSaveInputs = async () => {
         try {
-            await axios.post(`${server_url}/api/project/1/insertinput`, inputs);
+            await axios.post(`${server_url}/api/project/1/insertinput`, {inputs,selectedOption2,selectedOption});
             alert('FP Inputs saved successfully!');
+            
+        
        
         } catch (error) {
           alert('Error saving FP inputs');
@@ -195,16 +269,7 @@ function Startproject({ projectId })
               alert('Error fetching owners');
             }
           };
-          const fetchInputs = async () => {
-            try {
-                const response = await axios.get(`${server_url}/api/project/1/getinputs?developer_id=${userid}`);
-                setInputss(response.data.data);  // Assuming response.data.data contains the inputs
-                setLoading(false);
-            } catch (err) {
-                setError('Failed to load inputs');
-                setLoading(false);
-            }
-        };
+         
 
         fetchInputs();
           const fetchDevelopers = async () => {
@@ -942,7 +1007,8 @@ function Startproject({ projectId })
                   </div>
               </nav>
           </div>
-      </div>      <div class="content-page">
+      </div>   
+         <div class="content-page">
      <div class="container-fluid">
         <div class="row">
             <div class="col-lg-12">
@@ -955,14 +1021,12 @@ function Startproject({ projectId })
                   <div class="card-body">
                      <ul class="nav nav-pills mb-3 nav-fill" id="pills-tab-1" role="tablist">
                         <li class="nav-item">
-                           <a class="nav-link" id="pills-home-tab-fill" data-toggle="pill" href="#pills-home-fill" role="tab" aria-controls="pills-home" aria-selected="false">Home</a>
+                           <a class="nav-link" id="pills-home-tab-fill" data-toggle="pill" href="#pills-home-fill" role="tab" aria-controls="pills-home" aria-selected="false">Team Assign</a>
                         </li>
                         <li class="nav-item">
-                           <a class="nav-link" id="pills-profile-tab-fill" data-toggle="pill" href="#pills-profile-fill" role="tab" aria-controls="pills-profile" aria-selected="false">Profile</a>
+                           <a class="nav-link" id="pills-profile-tab-fill" data-toggle="pill" href="#pills-profile-fill" role="tab" aria-controls="pills-profile" aria-selected="false">Project Estimation</a>
                         </li>
-                        <li class="nav-item">
-                           <a class="nav-link active" id="pills-contact-tab-fill" data-toggle="pill" href="#pills-contact-fill" role="tab" aria-controls="pills-contact" aria-selected="true">Contact</a>
-                        </li>
+                       
                      </ul>
                      <div class="tab-content" id="pills-tabContent-1">
                         <div class="tab-pane fade" id="pills-home-fill" role="tabpanel" aria-labelledby="pills-home-tab-fill">
@@ -988,9 +1052,9 @@ function Startproject({ projectId })
                               </tr>
                            </thead>
                            <tbody>
+
                            {developers.map(developer => (
-                              <tr 
-                              style={{ display: 2 % 2 !== 0 ? 'none' : 'table-row' }}
+                              <tr key={developer.userid}
                               >
                                  <td>{`${developer.userid}`}</td>
                                  <td htmlFor={`${developer.name}`}>{developer.name}</td>
@@ -1023,83 +1087,187 @@ function Startproject({ projectId })
                </div>                             
                         </div>
                         <div class="tab-pane fade" id="pills-profile-fill" role="tabpanel" aria-labelledby="pills-profile-tab-fill">
-                        <div class="card">
-                  <div class="card-header d-flex justify-content-between">
-                     <div class="header-title">
-                        <h4 class="card-title">Project Estimation</h4>
-                     </div>
-                  </div>
-                  <div class="card-body">
-                     <p>Stack your navigation by changing the flex item direction with the <code>.flex-column</code> utility.</p>
-                     <div class="row">
-                        <div class="col-sm-3">
+                      
+               
+                     {/* <p>Stack your navigation by changing the flex item direction with the <code>.flex-column</code> utility.</p> */}
+                        {/* <div class="col-sm-3">
                            <div class="nav flex-column nav-pills text-center" id="v-pills-tab" role="tablist" aria-orientation="vertical">
                               <a class="nav-link active" id="v-pills-home-tab" data-toggle="pill" href="#v-pills-home" role="tab" aria-controls="v-pills-home" aria-selected="true">Home</a>
                               <a class="nav-link" id="v-pills-profile-tab" data-toggle="pill" href="#v-pills-profile" role="tab" aria-controls="v-pills-profile" aria-selected="false">Profile</a>
                               <a class="nav-link" id="v-pills-messages-tab" data-toggle="pill" href="#v-pills-messages" role="tab" aria-controls="v-pills-messages" aria-selected="false">Messages</a>
                               <a class="nav-link" id="v-pills-settings-tab" data-toggle="pill" href="#v-pills-settings" role="tab" aria-controls="v-pills-settings" aria-selected="false">Settings</a>
                            </div>
-                        </div>
-                        <div class="col-sm-9">
+                        </div> */}
+                        <div class="col-sm-12">
                            <div class="tab-content mt-0" id="v-pills-tabContent">
                            <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel" aria-labelledby="v-pills-home-tab">
             {userrole === 1?(
-                <div className="input-group-prepend">
-                <select
-value={selectedOption}
-class="form-control col-3"
-onChange={(e) => setSelectedOption(e.target.value)}
-style = {{
-    marginLeft:"20px",
-    borderRadius:"5px"
-}}
+                <div
+  className="profile-tab-container"
+ 
 >
-<option value="">Select The Technique</option>
-<option value="FP">Function Points (FP)</option>
-<option value="UC">Usecase (UC)</option>
-<option value="c1b">Cocomo 1 (Basic)</option>
-<option value="c1i">Cocomo 1 (Intermediate)</option>
-<option value="c1a">Cocomo 1 (Advanced)</option>
-<option value="c2">Cocomo 2 (Coco 2)</option>
-<option value="agile">Agile (Ag)</option>
+  <h4
+    style={{
+      color: '#333',
+      fontWeight: 'bold',
+      marginBottom: '20px',
+    }}
+  >
+    Select Estimation Technique and Method
+  </h4>
+  <div className="selection-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <label
+      htmlFor="technique-select"
+      style={{ fontSize: '16px', fontWeight: '500', color: '#555' }}
+    >
+      Technique:
+    </label>
+    <select
+      id="technique-select"
+      value={selectedOption}
+      onChange={(e) => setSelectedOption(e.target.value)}
+      className="form-control"
+      style={{
+        width: '250px',
+        height: '45px',
+        borderRadius: '8px',
+        border: '1px solid #ddd',
+        padding: '5px 10px',
+        boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.1)',
+      }}
+    >
+      <option value="" selected>Select The Technique</option>
+      <option value="FP">Function Points (FP)</option>
+      <option value="UC">Usecase (UC)</option>
+      <option value="c1b">Cocomo 1 (Basic)</option>
+      <option value="c1i">Cocomo 1 (Intermediate)</option>
+      <option value="c1a">Cocomo 1 (Advanced)</option>
+      <option value="c2">Cocomo 2 (Coco 2)</option>
+      <option value="agile">Agile (Ag)</option>
+    </select>
+    <label
+      htmlFor="method-select"
+      style={{ fontSize: '16px', fontWeight: '500', color: '#555' }}
+    >
+      Method:
+    </label>
+    <select
+      id="method-select"
+      value={selectedOption2}
+      onChange={(e) => setSelectedOption2(e.target.value)}
+      className="form-control"
+      style={{
+        width: '250px',
+        height: '45px',
+        borderRadius: '8px',
+        border: '1px solid #ddd',
+        padding: '5px 10px',
+        boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.1)',
+      }}
+    >
+      <option value="not selected">Select The Method</option>
+      {selectedOption === 'FP' ? (
 
-</select>
-<p
-style = {{
-    marginTop:"10px",
-    marginLeft:"10px"
-}}
->To</p>
-<select
-value={selectedOption2}
-class="form-control col-3"
-onChange={(e) => setSelectedOption2(e.target.value)}
-style = {{
-    marginLeft:"10px",
-    borderRadius:"5px"
-}}
->
-<option value="">Select The Method</option>
-<option value="PP">Poker Planning (PP)</option>
-<option value="FC">Fibonaci Series (FC)</option>
-</select>
-                </div>
+<option value="FP">Function Points (FP)</option>
+
+      ):selectedOption === "UC" ?(
+        <option value="UC">Usecase (UC)</option>
+
+      ):selectedOption === "c1b"?(
+        <option value="c1b">Cocomo 1 (Basic)</option>
+      ):selectedOption === "c1i"?(
+        <option value="c1i">Cocomo 1 (Intermediate)</option>
+    ):selectedOption === "c1a"?(
+        <option value="c1a">Cocomo 1 (Advanced)</option>
+    ):selectedOption === "c2"?(
+        <option value="c2">Cocomo 2 (Coco 2)</option>
+    ):selectedOption === "agile"?(
+        <option value="agile">Agile (Ag)</option>
+    ):null}
+      <option value="PP">Poker Planning (PP)</option>
+      <option value="FC">Fibonacci Series (FC)</option>
+    </select>
+  </div>
+  {/* <button
+    onClick={() => console.log('Save Selection')}
+    className="btn btn-primary"
+    style={{
+      marginTop: '20px',
+      padding: '10px 20px',
+      backgroundColor: '#2196F3',
+      border: 'none',
+      borderRadius: '8px',
+      color: '#fff',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+      transition: 'background-color 0.3s ease',
+    }}
+    onMouseOver={(e) => (e.target.style.backgroundColor = '#1976D2')}
+    onMouseOut={(e) => (e.target.style.backgroundColor = '#2196F3')}
+  >
+    Save Selection
+  </button> */}
+</div>
+
+//                 <div className="input-group-prepend">
+//                 <select
+// value={selectedOption}
+// class="form-control col-3"
+// onChange={(e) => setSelectedOption(e.target.value)}
+// style = {{
+//     marginLeft:"20px",
+//     borderRadius:"5px"
+// }}
+// >
+// <option value="">Select The Technique</option>
+// <option value="FP">Function Points (FP)</option>
+// <option value="UC">Usecase (UC)</option>
+// <option value="c1b">Cocomo 1 (Basic)</option>
+// <option value="c1i">Cocomo 1 (Intermediate)</option>
+// <option value="c1a">Cocomo 1 (Advanced)</option>
+// <option value="c2">Cocomo 2 (Coco 2)</option>
+// <option value="agile">Agile (Ag)</option>
+
+// </select>
+// <p
+// style = {{
+//     marginTop:"10px",
+//     marginLeft:"10px"
+// }}
+// >To</p>
+// <select
+// value={selectedOption2}
+// class="form-control col-3"
+// onChange={(e) => setSelectedOption2(e.target.value)}
+// style = {{
+//     marginLeft:"10px",
+//     borderRadius:"5px"
+// }}
+// >
+// <option value="">Select The Method</option>
+// <option value="PP">Poker Planning (PP)</option>
+// <option value="FC">Fibonaci Series (FC)</option>
+// </select>
+//                 </div>
             ):userrole === 3 ?(
                 <>
-                <table class="table table-hover">
+                <div></div>
+                <table class="table table-hover ">
                 <thead>
                    <tr>
                       <th scope="col">#</th>
                       <th scope="col">Name</th>
                       <th scope="col">Complexity</th>
-                      <th scope="col">DET's</th>
-                      <th scope="col">FRT's</th>
+              
                    </tr>
                 </thead>
                 <tbody>
                     {inputss.map((input) => (
-                        <tr key={input.input_id}>
+                        <>
+                        <p>Spell Number:{input.spell}</p>
+                           <tr key={input.input_id}>
                             <td scope='row'>{input.input_id}</td>
+                               <input hidden id="inputid" value={input.input_id}/>
                             <td>{input.input_name +" ("+input.input_category+")"}</td>
                             <td>
                                 {/* Priority Dropdown */}
@@ -1109,14 +1277,30 @@ style = {{
                                     onChange={(e) => handleSelectChange(e, input.input_id, 'complexity')}
                                 >
                                     <option disabled selected>Select Complexity</option>
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
+                                    {project.method === "PP" && project.estimation_technique === "FP" ?(
+                                        <> 
+                                        <option value="Low">Low</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="High">High</option>
+                                        </>
+                                 
+                                    ):project.method === "FC" && project.estimation_technique === "FP"?(
+                                        <>
+                                        
+                                       
+{assigned_weights.map((item) => (
+          <option key={item.weight_id} value={item.weight}>
+            {item.weight} 
+          </option>
+        ))}
+                                        </>
+                                    ):null}
+                                    
                                 </select>
                             </td>
-                            <td>
+                            <td hidden>
                                 {/* Status Dropdown */}
-                                <select 
+                                <select  
                                     value={input.det} 
                                     class="form-control"
                                     onChange={(e) => handleSelectChange(e, input.input_id, 'det')}
@@ -1127,9 +1311,9 @@ style = {{
                                     <option value="High">High</option>
                                 </select>
                             </td>
-                            <td>
+                            <td hidden>
                                 {/* Type Dropdown */}
-                                <select 
+                                <select hidden
                                     value={input.frt}      
                                     class="form-control"
 
@@ -1142,17 +1326,33 @@ style = {{
                                 </select>
                             </td>
                         </tr>
+                        </>
+                     
                     ))}
                 </tbody>
-             </table>               
-              <button onClick={handleupdatestatus} className='btn btn-success'>Mark as Done</button>
-             </>
+                
+               
+             </table>  
+             <div
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between', // Ensures input is left, button is right
+  }}
+>
+  <input value="" className="form-control col-2" />
+  <button onClick={handleupdatestatus} className="btn btn-success">
+    Mark as Done
+  </button>
+</div>
+  
+                      </>
             ):null }
             
            
             {selectedOption === 'FP' ? (
   // If "FP" is selected, show the Function Point Input Manager
-  <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+  <div class='card-body' style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
     <h4
     style= 
     { {
@@ -1210,25 +1410,31 @@ style = {{
     </div>
     {renderHistoryTable()}
     <button
-      onClick={handleSaveInputs}
+  {...(selectedOption2 === "FC"
+    ? { "data-toggle": "modal", "data-target": "#exampleModalCenter" }
+    : {})}
+  onClick={selectedOption2 === "FC" ? undefined : handleSaveInputs} // Set onClick to undefined if "FC"
+  style={{
+    padding: "10px 20px",
+    fontSize: "16px",
+    cursor: "pointer",
+    backgroundColor: "#2196F3",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    marginTop: "20px",
+  }}
+>
+  Save
+</button>
 
-      style={{
-        padding: '10px 20px',
-        fontSize: '16px',
-        cursor: 'pointer',
-        backgroundColor: '#2196F3',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        marginTop: '20px',
-      }}
-    >
-      Save 
-    </button>
+
+
   </div>
+
 ) : selectedOption === 'UC' ? (
   // Else if: specific UI for "OtherOption1"
-  <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+  <div className='card-body' style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
     <h3>Usecase Selected</h3>
     <p>This is the UI for "Usecase".</p>
   </div>
@@ -1262,34 +1468,29 @@ style = {{
       <h3>Agile Selected</h3>
       <p>This is the UI for "Agile". Customize as needed.</p>
     </div>
-  ) : (null
-  // Else: default message for unsupported or unselected options
-//   <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
-//     <h3>Option Selected: {selectedOption || 'None'}</h3>
-//     <p>
-//       The selected option is not recognized. Please choose a valid option from
-//       the dropdown.
-//     </p>
-//   </div>
-)}
+  ) :selectedOption === 'not selected' ? ( <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}><br></br>
+    <h4 style={{ marginBottom: '10px' }}>Welcome to the Estimation Tool</h4>
+    <p>
+      Please select a technique from the dropdown menu to start the estimation process. 
+      Each technique provides a unique approach for project estimation:
+    </p>
+    <ul>
+      <li><b>Function Points (FP):</b> Analyze inputs, outputs, and files to estimate project size.</li>
+      <li><b>Usecase (UC):</b> Calculate complexity based on use cases.</li>
+      <li><b>Cocomo Models:</b> Estimate time and effort using various COCOMO techniques.</li>
+      <li><b>Agile:</b> Use planning techniques like Poker Planning or Fibonacci Series.</li>
+    </ul>
+    <p>Choose a technique to proceed!</p>
+  </div>
+):null}
 </div>
-                              <div class="tab-pane fade" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab">
-                                 <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
-                              </div>
-                              <div class="tab-pane fade" id="v-pills-messages" role="tabpanel" aria-labelledby="v-pills-messages-tab">
-                                 <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
-                              </div>
-                              <div class="tab-pane fade" id="v-pills-settings" role="tabpanel" aria-labelledby="v-pills-settings-tab">
-                                 <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
-                              </div>
+                            
                            </div>
                         </div>
                      </div>
                   </div>
-               </div>                        </div>
-                        <div class="tab-pane fade active show" id="pills-contact-fill" role="tabpanel" aria-labelledby="pills-contact-tab-fill">
-                            <p>contact</p>
-                        </div>
+                                  
+                     
                      </div>
                   </div>
                </div>
@@ -1298,8 +1499,43 @@ style = {{
 
     </div>
       </div>
-    </div>
-
+      <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalCenterTitle">Select Fibonacci Numbers for Weight Assignment</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                      {Object.keys(switchState).map(number => (
+                        <div className="custom-control custom-switch custom-switch-color custom-control-inline" key={number}>
+                          <input 
+                            type="checkbox"
+                            className="custom-control-input bg-success"
+                            id={`customSwitch${number}`}
+                            checked={switchState[number]}
+                            onChange={(e) => handleSwitchChange(e, number)}
+                          />
+                          <label className="custom-control-label" htmlFor={`customSwitch${number}`}>{number}</label>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="modal-footer">
+                      <button type="button" className="btn btn-secondary" data-dismiss="modal" disabled={isSaved}>Close</button>
+                      <button 
+                        type="button" 
+                        className="btn btn-primary" 
+                        onClick={handleSaveChanges} 
+                        disabled={!isFormValid} // Disable the button until at least one switch is selected
+                      >
+                        Save changes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
     <footer class="iq-footer">
         <div class="container-fluid">
             <div class="row">
@@ -1315,11 +1551,12 @@ style = {{
             </div>
         </div>
     </footer>
+    
     </>
   )
   async function handleSelectChange(e, inputId, field) {
     const updatedValue = e.target.value;
-
+  
     // Optimistically update the UI
     const updatedInputs = inputss.map(input => 
         input.input_id === inputId ? { ...input, [field]: updatedValue } : input
@@ -1329,8 +1566,12 @@ style = {{
     try {
         // Send the updated field to the server
         await axios.post(`${server_url}/api/project/1/updateinput`, { id: inputId, field, value: updatedValue,developer_id:userid  });
-        await axios.get(`${server_url}/api/project/1/checkstatus`);
-
+        const response =  await axios.get(`${server_url}/api/project/1/checkstatus?id=${inputId}`);
+        console.log(response.data.devresponse);
+        if (response.data.devresponse.some((value) => value === userid)) {
+             alert("hello");              
+        }
+        
         console.log(`${field} updated successfully!`);
     } catch (err) {
         console.error('Error updating field:', err);

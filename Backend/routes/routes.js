@@ -39,13 +39,13 @@ router.post('/project/team', project.team);
 router.get('/developers', user.getdeveloper);
 router.post('/project/assignteam', project.team);
 router.get('/getdeveloper', user.getdeveloper);
-router.post('/project/:project_id/insertinput', input.insertinput);
-router.get('/project/:project_id/getinputs', input.getinputs);
+router.post('/project/:project_id/insertinput', input.insertinput.bind(input));
+router.get('/project/:project_id/getinputs', input.getinputs.bind(input));
 router.post('/project/:project_id/updateinput', fp.updatecomplexity);
 router.post('/project/:project_id/updateinputstatus', fp.updatestatus);
 // Add a message
 router.post("/project/:project_id/addmessages", upload.single("audio"), msg.messagesend);
 router.get("/project/:project_id/getmessages", msg.getmessage);
-router.get("/project/:project_id/checkstatus", pokerplanning.checkAllStatus);
+router.get("/project/:project_id/checkstatus", pokerplanning.checkAllStatus.bind(pokerplanning));
 
 module.exports = router;

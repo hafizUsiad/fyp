@@ -820,7 +820,9 @@ function Project()
             <div class="row">
             {projects.length > 0 ? (
         projects.map((project,index) => (
-          <div className="col-lg-4 col-md-6" key={project.project_id}>
+ <div className="col-lg-4 col-md-6" key={project.project_id}>
+                <a href = "/project/start">
+
             <div className="card card-block card-stretch card-height">
               <div className="card-body">
                 <div className="d-flex align-items-center justify-content-between mb-4">
@@ -869,7 +871,11 @@ function Project()
                 </div>
               </div>
             </div>
+            </a>
+
           </div>
+
+         
         ))
       ) : (
         <p>No projects found.</p>

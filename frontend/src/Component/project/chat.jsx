@@ -5,20 +5,16 @@ import axios from "axios";
 
 function ChatBox() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [messages, setMessages] = useState([]); // Store retrieved messages
-  const [newMessage, setNewMessage] = useState(""); // Track the typed message
-  const [userId] = useState(1); // Example user ID
-  const [projectId] = useState(1); // Example project ID
-  const [isRecording, setIsRecording] = useState(false); // Track recording state
-  const [audioBlob, setAudioBlob] = useState(null); // Store the recorded audio
-  const mediaRecorderRef = useRef(null); // Reference to the MediaRecorder
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [userId] = useState(1);
+  const [projectId] = useState(1);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const mediaRecorderRef = useRef(null);
 
-  // Toggle modal visibility
-  const toggleModal = () => {
-    setIsModalOpen(!isModalOpen);
-  };
+  const toggleModal = () => setIsModalOpen(!isModalOpen);
 
-  // Fetch messages from the server when the modal is opened
   const fetchMessages = async () => {
     try {
       const response = await axios.get(`${server_url}/api/project/1/getmessages`);
@@ -28,29 +24,24 @@ function ChatBox() {
     }
   };
 
-  // Send a new message (text or voice) to the server
   const sendMessage = async (messageText, messageType, audioData = null) => {
-    if (!messageText.trim() && !audioData) return; // Don't send if empty
-  
+    if (!messageText.trim() && !audioData) return;
+
     try {
       let formData = new FormData();
       formData.append("sender_id", userId);
       formData.append("project_id", projectId);
       formData.append("message_text", messageText);
       formData.append("message_type", messageType);
-  
+
       if (audioData) {
-        formData.append("audio", audioData); // Append audio file to the form data
+        formData.append("audio", audioData);
       }
-  
-      // Send the form data to the backend
+
       const response = await axios.post(`${server_url}/api/project/1/addmessages`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data", // Tell the server it's a file upload
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
-  
-      // Add the new message to the local state
+
       setMessages([
         ...messages,
         {
@@ -60,24 +51,21 @@ function ChatBox() {
           message_text: messageText,
           message_type: messageType,
           timestamp: new Date().toISOString(),
-          audio: response.data.audioPath ? `${server_url}/${response.data.audioPath}` : null, // Full path to audio file
+          audio: response.data.audioPath ? `${server_url}/${response.data.audioPath}` : null,
         },
       ]);
       setNewMessage("");
-      setAudioBlob(null); // Reset the audio blob after sending
+      setAudioBlob(null);
     } catch (error) {
       console.error("Error sending message:", error);
     }
   };
-  
 
-  // Start recording the voice message
   const startRecording = () => {
     setIsRecording(true);
-
-    // Check if the browser supports the MediaRecorder API
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
         .then((stream) => {
           const mediaRecorder = new MediaRecorder(stream);
           mediaRecorderRef.current = mediaRecorder;
@@ -89,19 +77,18 @@ function ChatBox() {
 
           mediaRecorder.onstop = () => {
             const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-            setAudioBlob(audioBlob); // Save the audio blob
-            sendMessage("", "voice", audioBlob); // Send audio message when stopped
+            setAudioBlob(audioBlob);
+            sendMessage("", "voice", audioBlob);
           };
 
           mediaRecorder.start();
 
-          // Automatically stop recording after 5 seconds (or when user stops speaking)
           setTimeout(() => {
             if (isRecording) {
               mediaRecorder.stop();
-              setIsRecording(false); // Stop recording
+              setIsRecording(false);
             }
-          }, 5000); // Adjust timing as needed
+          }, 5000);
         })
         .catch((error) => {
           console.error("Error accessing audio devices:", error);
@@ -110,22 +97,19 @@ function ChatBox() {
     }
   };
 
-  // Stop recording manually (if user presses stop)
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
-      setIsRecording(false); // Stop recording
+      setIsRecording(false);
     }
   };
 
-  // Fetch messages only when the modal is opened
   useEffect(() => {
     if (isModalOpen) {
-      fetchMessages(); // Fetch messages once when modal opens
+      fetchMessages();
     }
   }, [isModalOpen]);
 
-  // Function to format the timestamp and show only time (HH:mm format)
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const hours = date.getHours();
@@ -135,7 +119,6 @@ function ChatBox() {
 
   return (
     <>
-      {/* Floating Chat Icon */}
       <button
         className="btn btn-primary rounded-circle"
         style={{
@@ -154,112 +137,105 @@ function ChatBox() {
         <i className="bi bi-chat-dots"></i>
       </button>
 
-      {/* Chat Modal */}
       {isModalOpen && (
         <div
           className="modal fade show d-block"
+
           tabIndex="-1"
           role="dialog"
-          style={{ background: "rgba(0,0,0,0.5)" }}
+          style={{ background: "rgba(0,0,0,0.5)", zIndex: 1050 }}
         >
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
+          <div className="modal-dialog modal-dialog-centered w-100">
+            <div className="modal-content" style={{ borderRadius: "15px" }}>
+              {/* Header */}
+              <div className="modal-header bg-light-primary text-white">
                 <h5 className="modal-title">Chat</h5>
                 <button type="button" className="btn-close" onClick={toggleModal}></button>
               </div>
-              <div
-                className="modal-body"
-                style={{
-                  maxHeight: "400px",
-                  overflowY: "auto", // Make the message box scrollable
-                  paddingRight: "10px",
-                }}
-              >
-                {/* Messages List */}
+
+              {/* Body */}
+              <div className="modal-body" style={{ maxHeight: "400px", overflowY: "auto" }}>
                 {messages.length > 0 ? (
                   messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`${message.sender_id === userId ? "user text-end" : "bot"}`}
-                      style={{
-                        maxWidth: "fit-content", // Make each message box fit to content
-                      }}
+                      className={`mb-2 d-flex ${
+                        message.sender_id === userId ? "justify-content-end" : "justify-content-start"
+                      }`}
                     >
-                      {/* User name display */}
+                       {message.sender_id !== userId ? (
+ <small
+ style={{
+   marginTop:"20px",
+   backgroundColor:"gray",
+   height:"30px",
+   width:"30PX",
+   borderRadius:"1000px",
+   color:"white",
+   textAlign:"center",
+   marginRight:"5px"
+ }}
+ >{"  "+message.initials+"  "}  </small>
+
+
+                       ):null}
+                      
                       <div
-                        style={{
-                          fontSize: "12px", // Small font size for the username
-                          color: "#6c757d", // Light gray color for the username
-                          marginBottom: "5px", // Space between username and message
+                        className={`p-2 ${
+                          message.sender_id === userId ? "sky-blue text-white" : "bg-light text-dark"
+                        } rounded`}
+                        style={{ maxWidth: "75%"
+
                         }}
                       >
-                        {message.sender_id === userId ? "You" : "User"}
-                      </div>
-
-                      {/* Message Text or Audio */}
-                      {message.message_type === "text" ? (
-                        <p
-                          className={`${
-                            message.sender_id === userId
-                              ? "bg-primary text-white"
-                              : "bg-light-gray text-dark"
-                          } p-2`}
-                          style={{
-                            borderRadius: "10px", // Rounded message bubble
-                            wordWrap: "break-word", // Wrap text if it's too long
-                            lineHeight: "1.4", // Adjust line height for better readability
-                            display: "inline-block",
+                       
+                        {message.message_type === "text" ? (
+                          <p className="mb-1"
+                          style = {{
+                            marginBottom:"-8px !important"
                           }}
-                        >
-                          {message.message_text}
-                          <div
-                            style={{
-                              fontSize: "10px", // Small font size for the timestamp
-                              textAlign: "left",
-                              color: message.sender_id === userId ? "white" : "#6c757d", // Align username accordingly
-                            }}
-                          >
-                            {formatTime(message.timestamp)}
-                          </div>
-                        </p>
-                      ) :message.message_type === "voice" ? (
-                        <div>
+                          >{message.message_text}</p>
+                        ) : (
                           <audio controls>
                             <source src={`${server_url}/${message.voice_note_url}`} type="audio/mp3" />
                             Your browser does not support the audio element.
                           </audio>
-                        </div>
-                      ):null}
+                        )}
+                        <small
+                         style = {{
+                          marginTop:"-16px",
+                          marginBottom:"-10px",
+                        }}
+                        className="d-block text-end text-white text-muted">{formatTime(message.timestamp)}</small>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-muted">No messages yet.</p>
+                  <p className="text-center text-muted">No messages yet.</p>
                 )}
               </div>
-              <div className="modal-footer">
-                {/* Send Message Input */}
+
+              {/* Footer */}
+              <div className="modal-footer bg-light">
                 <div className="input-group">
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="Type your message..."
+                    placeholder="Type a message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    disabled={isRecording} // Disable typing while recording
+                    disabled={isRecording}
                   />
-                  <button className="btn btn-outline-primary" onClick={() => sendMessage(newMessage, "text")}>
+                  <button className="btn btn-primary" onClick={() => sendMessage(newMessage, "text")}>
                     <i className="bi bi-send-fill"></i>
                   </button>
+                  <button
+                    className={`btn ${isRecording ? "btn-danger" : "btn-success"}`}
+                    onClick={isRecording ? stopRecording : startRecording}
+                  >
+                    <i className={`bi ${isRecording ? "bi-stop-circle" : "bi-mic"}`}></i>
+                  </button>
                 </div>
-                {/* Record Voice Message Button */}
-                <button
-                  className={`btn ${isRecording ? "btn-danger" : "btn-outline-success"}`}
-                  onClick={isRecording ? stopRecording : startRecording}
-                  style={{ marginLeft: "10px" }}
-                >
-                  {isRecording ? "Stop Recording" : "Record Voice"}
-                </button>
               </div>
             </div>
           </div>
