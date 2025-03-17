@@ -1,3 +1,4 @@
-const server_url = "http://localhost:5000";
+const server = "http://localhost:5000";
+const frontend_url = "http://localhost:3000";
 
-export default server_url;
+export {server,frontend_url};

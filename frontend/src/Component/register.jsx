@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import server from "../serverconfig";
+import {server} from "../serverconfig";
 import { useNavigate } from 'react-router-dom';
 
 function Register() {

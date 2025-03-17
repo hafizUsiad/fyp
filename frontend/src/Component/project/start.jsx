@@ -1,13 +1,21 @@
 import React, { useState,useEffect,useCallback} from 'react';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import server from "../../serverconfig";
+import {server} from "../../serverconfig";
 import { useNavigate } from 'react-router-dom';
-import server_url from '../../serverconfig';
 import ChatBox from './chat';
+import TopBar from '../sub component/navbar';
+import Sidebar from '../sub component/sidebar';
 
 function Startproject({ projectId })
 {
+  const [developers, setDevelopers] = useState([]);
+  const [assignedDevs, setAssignedDevs] = useState(new Set());
+  const [Team, setTeam] = useState([]);
+
     const navigate = useNavigate();
+    var {id} = useParams();
+
  // Initialize the state for the switches
  const [switchState, setSwitchState] = useState({
     1: false,  // Fibonacci 1
@@ -33,11 +41,10 @@ function Startproject({ projectId })
     const [owners, setOwners] = useState([]);  // State to store owners list
     const [projects, setProjects] = useState([]);
     const [inputss, setInputss] = useState([]);
+    const [output, setoutput] = useState([]);
 
-    const [developers, setDevelopers] = useState([]);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [selectedDevelopers, setSelectedDevelopers] = useState([]);
     const styles = {
         tableHeader: {
           padding: '5px',
@@ -76,8 +83,10 @@ function Startproject({ projectId })
       const [currentInput, setCurrentInput] = useState('');
       const [currentCategory, setCurrentCategory] = useState('EI'); // Default category
       const [editing, setEditing] = useState({ type: '', index: -1 });
-      const [selectedOption, setSelectedOption] = useState('');
+      const [selectedOption, setSelectedOption] = useState('not selected');
       const [selectedOption2, setSelectedOption2] = useState('not selected');
+      const [selectedOptionforcocomo, setselectedOptionforcocomo] = useState('not selected');
+
       var inputidd = 0;
       const selectedSwitches = Object.keys(switchState)
       .filter(key => switchState[key])  // Filter out unchecked switches
@@ -115,7 +124,7 @@ function Startproject({ projectId })
       };
       const fetchInputs = async () => {
         try {
-            const response = await axios.get(`${server_url}/api/project/1/getinputs?developer_id=${userid}`);
+            const response = await axios.get(`${server}/api/project/${id}/getinputs?developer_id=${userid}`);
 
             setInputss(response.data.data);  // Assuming response.data.data contains the inputs
             setProject(response.data.projectdetail[0]);
@@ -130,10 +139,20 @@ function Startproject({ projectId })
             setLoading(false);
         }
     };
+    const handleoutput = async () => {
+      try {
+        const output = await axios.get(`${server}/api/project/${id}/fpoutput?project_id=${id}`);
+        setoutput(output.data.data);
+      } catch (err) {
+          setError('Failed to load inputs');
+          setLoading(false);
+      }
+  };
+  handleoutput();
       const handleupdatestatus = async () => {
         try {
             var currentinputid = document.getElementById("inputid").value;
-            await axios.post(`${server_url}/api/project/1/updateinputstatus`, { developer_id:userid ,input_id:currentinputid });
+            await axios.post(`${server}/api/project/${id}/updateinputstatus`, { developer_id:userid ,input_id:currentinputid });
             alert('FP Complexity saved successfully!');
             fetchInputs();
         } 
@@ -175,10 +194,26 @@ function Startproject({ projectId })
       }
   
       try {
-        await axios.post(`${server_url}/api/project/1/insertinput`, {inputs,selectedOption2,selectedOption,selectedSwitches});
-        
-        setIsSaved(true); // Mark as saved
+        if(selectedOption === "FP")
+        {
+            await axios.post(`${server}/api/project/${id}/insertinput`, {inputs,selectedOption2,selectedOption,selectedSwitches,primary_technique:selectedOptionforcocomo});
+            setIsSaved(true); // Mark as saved
         alert("Data sent successfully!");
+          }
+        else if(selectedOption === "UC")
+        {
+            await axios.post(`${server}/api/project/${id}/insertinput`, {input:useCases,selectedOption2,selectedOption,selectedSwitches,primary_technique:selectedOptionforcocomo});
+            setIsSaved(true); // Mark as saved
+            alert("Data sent successfully!");
+        }
+        else if(selectedOption === "c1b")
+        {
+              await axios.post(`${server}/api/project/${id}/insertinput`, {input:useCases,selectedOption2,selectedOption,selectedSwitches,primary_technique:selectedOptionforcocomo});
+              setIsSaved(true); // Mark as saved
+              alert("Data sent successfully!");
+        }
+        
+   
       } catch (error) {
         console.error("Error sending data:", error);
         alert("Failed to send data");
@@ -190,10 +225,24 @@ function Startproject({ projectId })
 
       const handleSaveInputs = async () => {
         try {
-            await axios.post(`${server_url}/api/project/1/insertinput`, {inputs,selectedOption2,selectedOption});
-            alert('FP Inputs saved successfully!');
-            
-        
+            if(selectedOption === "FP")
+                {
+                    await axios.post(`${server}/api/project/${id}/insertinput`, {inputs,selectedOption2,selectedOption,selectedSwitches});
+                    alert('FP Inputs saved successfully!');
+
+                }
+            else if(selectedOption === "UC")
+            {
+                await axios.post(`${server}/api/project/${id}/insertinput`, {inputs:useCases,selectedOption2,selectedOption,selectedSwitches,primary_technique:selectedOptionforcocomo});
+                alert('UC Inputs saved successfully!');
+
+            }        
+            else if(selectedOption === "c1b")
+              {
+                await axios.post(`${server}/api/project/${id}/insertinput`, {inputs:useCases,selectedOption2,selectedOption,selectedSwitches,primary_technique:selectedOptionforcocomo});
+                alert('Cocomo Basic Inputs saved successfully!');
+              }    
+                
        
         } catch (error) {
           alert('Error saving FP inputs');
@@ -272,14 +321,16 @@ function Startproject({ projectId })
          
 
         fetchInputs();
-          const fetchDevelopers = async () => {
-            try {
-              const response = await axios.get(`${server}/api/getdeveloper`);
-              setDevelopers(response.data);  // Assuming the response is an array of developers
-            } catch (error) {
-              console.error('Error fetching developers:', error);
-            }
-          };
+        const fetchDevelopers = async () => {
+          try {
+            const response = await axios.get(`${server}/api/getdeveloper`);
+            setDevelopers(response.data); // Populate developers
+           
+          } catch (error) {
+            console.error('Error fetching developers:', error);
+          }
+        };
+        
       
           fetchDevelopers();
       
@@ -287,727 +338,146 @@ function Startproject({ projectId })
       }, [navigate,projectId]);
      
       // Handle checkbox change
-  const handleCheckboxChange = (developerId) => {
-    setSelectedDevelopers((prevSelected) => {
-      if (prevSelected.includes(developerId)) {
-        // If already selected, remove the developer from the selected list
-        return prevSelected.filter(id => id !== developerId);
-      } else {
-        // Otherwise, add the developer to the selected list
-        return [...prevSelected, developerId];
-      }
-    });
-  };
-
-  // Handle form submission
-  const handleSubmit2 = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await axios.post(`${server_url}/api/project/assignteam`, {
-        projectId,
-        developerIds: selectedDevelopers
+  // const handleCheckboxChange = (developerId) => {
+  //   setSelectedDevelopers((prevSelected) => {
+  //     if (prevSelected.includes(developerId)) {
+  //       // If already selected, remove the developer from the selected list
+  //       return prevSelected.filter(id => id !== developerId);
+  //     } else {
+  //       // Otherwise, add the developer to the selected list
+  //       return [...prevSelected, developerId];
+  //     }
+  //   });
+  // };
+  const assigned_members = async () => {
+    try{
+      let res = await axios.get(`${server}/api/project/${id}/team`, {
+        
       });
+      setTeam(res.data.Team);
+      console.log(Team[1].developer_id);
+    }catch (error) {
+      console.error("Error updating assignment:", error);
+    }
+  }
+  useEffect(() => {
+    assigned_members();
+  }, []); // Runs only once on component mount
+  
+  const assignteam = async (devId) => {
+    try {
+      const newAssignedDevs = new Set(assignedDevs);
+      let res;
+  
+      if (newAssignedDevs.has(devId)) {
+        // Unassign Developer
+        newAssignedDevs.delete(devId);
+        res = await axios.post(`${server}/api/project/${id}/unassignteam`, {
+          id,
+          developerIds: devId
+        });
+        console.log("if");
+
+      } 
+      else if (Team.some(member => member.developer_id === devId)) {
+        // ✅ Unassign if `devId` exists in `Team`
+        console.log(devId);
+        res = await axios.post(`${server}/api/project/${id}/unassignteam`, {
+          developerIds: devId
+        });
+        assigned_members();
+        alert(res.data.msg);
+      } 
+      else {
+        // Assign Developer
+        newAssignedDevs.add(devId);
+        res = await axios.post(`${server}/api/project/assignteam`, {
+          id,
+          developerIds: devId
+        });
+      }
+  
       alert(res.data.msg);
+      assigned_members();
+      setAssignedDevs(newAssignedDevs); // Update state only after successful API call
+  
     } catch (error) {
-      alert('Error assigning team to project');
+      console.error("Error updating assignment:", error);
+      alert("Failed to update assignment. Please try again.");
     }
   };
-     
+  
+  const maxRowsPerPage = 10;
+  const [useCases, setUseCases] = useState([{ name: [] }]);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Function to add a new row
+  const addRow = () => {
+    setUseCases([...useCases, { name: '' }]);
+    const totalRows = useCases.length + 1;
+    const totalPages = Math.ceil(totalRows / maxRowsPerPage);
+    if (totalRows > currentPage * maxRowsPerPage) {
+      setCurrentPage(totalPages);
+    }
+  };
+
+  // Function to delete a row
+  const deleteRow = (index) => {
+    const updatedRows = useCases.filter((_, i) => i !== index);
+    setUseCases(updatedRows);
+
+    const totalRows = updatedRows.length;
+    const totalPages = Math.ceil(totalRows / maxRowsPerPage);
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } 
+  };
+
+  // Function to update the name of a use case
+  const handleChange = (index, value) => {
+    const updatedRows = [...useCases];
+    updatedRows[index].name = value;
+    setUseCases(updatedRows);
+  };
+
+  // Function to update pagination
+  const updatePagination = () => {
+    const totalRows = useCases.length;
+    const totalPages = Math.ceil(totalRows / maxRowsPerPage);
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  // Function to change page
+  const changePage = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  // Function to render the rows for the current page
+  const renderPage = () => {
+    const startIndex = (currentPage - 1) * maxRowsPerPage;
+    const endIndex = startIndex + maxRowsPerPage;
+    return useCases.slice(startIndex, endIndex);
+  };
+
+  // Function to save the table data
+  const saveTable = () => {
+    const savedUseCases = useCases.filter(useCase => useCase.name.trim());
+    console.log("Saved Use Cases:", savedUseCases);
+    handleSaveInputs();
+  };
+
+  const pagination = updatePagination();
   return (
     <>
     <ChatBox />
     <div class="wrapper">
       
-      <div class="iq-sidebar  sidebar-default ">
-          <div class="iq-sidebar-logo d-flex align-items-center">
-              <a href="../backend/index.html" class="header-logo">
-                  <img src="../assets/images/logo.svg" alt="logo"/>
-                  <h3 class="logo-title light-logo">Webkit</h3>
-              </a>
-              <div class="iq-menu-bt-sidebar ml-0">
-                  <i class="las la-bars wrapper-menu"></i>
-              </div>
-          </div>
-          <div class="data-scrollbar" data-scroll="1">
-              <nav class="iq-sidebar-menu">
-                  <ul id="iq-sidebar-toggle" class="iq-menu">
-                      <li class="">
-                          <a href="../backend/index.html" class="svg-icon">                        
-                              <svg class="svg-icon" width="25" height="25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                              </svg>
-                              <span class="ml-4">Dashboards</span>
-                          </a>
-                      </li>
-                      <li class="active">
-                          <a href="../backend/page-project.html" class="svg-icon">                        
-                              <svg class="svg-icon" width="25" height="25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                                  <rect x="6" y="14" width="12" height="8"></rect>
-                              </svg>
-                              <span class="ml-4">Projects</span>
-                          </a>
-                      </li>
-                      <li class="">
-                          <a href="../backend/page-task.html" class="svg-icon">                        
-                              <svg class="svg-icon" width="25" height="25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                              </svg>
-                              <span class="ml-4">Task</span>
-                          </a>
-                      </li>
-                      <li class="">
-                          <a href="../backend/page-employee.html" class="svg-icon">                        
-                              <svg class="svg-icon" width="25" height="25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
-                              </svg>
-                              <span class="ml-4">Employees</span>
-                          </a>
-                      </li>
-                      <li class="">
-                          <a href="../backend/page-desk.html" class="svg-icon">                        
-                              <svg class="svg-icon" width="25" height="25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>
-                              </svg>
-                              <span class="ml-4">Desk</span>
-                          </a>
-                      </li>
-                      <li class="">
-                          <a href="../backend/page-calender.html" class="svg-icon">                        
-                              <svg class="svg-icon" width="25" height="25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
-                              </svg>
-                              <span class="ml-4">Calender</span>
-                          </a>
-                      </li>
-                      <li class=" ">
-                          <a href="#otherpage" class="collapsed" data-toggle="collapse" aria-expanded="false">
-                              <svg class="svg-icon" width="25" height="25" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                              </svg>
-                              <span class="ml-4">other page</span>                        
-                              <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                              <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                          </a>
-                          <ul id="otherpage" class="iq-submenu collapse" data-parent="#iq-sidebar-toggle">
-                                  <li class=" ">
-                                      <a href="#user" class="collapsed" data-toggle="collapse" aria-expanded="false">
-                                          <svg class="svg-icon" id="p-dash10" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline>
-                                          </svg>
-                                          <span class="ml-4">User Details</span>
-                                          <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                                          <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                                      </a>
-                                      <ul id="user" class="iq-submenu collapse" data-parent="#otherpage">
-                                              <li class="">
-                                                  <a href="../app/user-profile.html">
-                                                      <i class="las la-minus"></i><span>User Profile</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../app/user-add.html">
-                                                      <i class="las la-minus"></i><span>User Add</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../app/user-list.html">
-                                                      <i class="las la-minus"></i><span>User List</span>
-                                                  </a>
-                                              </li>
-                                      </ul>
-                                  </li>
-                                  <li class=" ">
-                                      <a href="#ui" class="collapsed" data-toggle="collapse" aria-expanded="false">
-                                         <svg class="svg-icon" id="p-dash11" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                          </svg>
-                                          <span class="ml-4">UI Elements</span>
-                                          <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                                          <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                                      </a>
-                                      <ul id="ui" class="iq-submenu collapse" data-parent="#otherpage">
-                                              <li class="">
-                                                  <a href="../backend/ui-avatars.html">
-                                                      <i class="las la-minus"></i><span>Avatars</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-alerts.html">
-                                                      <i class="las la-minus"></i><span>Alerts</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-badges.html">
-                                                      <i class="las la-minus"></i><span>Badges</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-breadcrumb.html">
-                                                      <i class="las la-minus"></i><span>Breadcrumb</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-buttons.html">
-                                                      <i class="las la-minus"></i><span>Buttons</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-buttons-group.html">
-                                                      <i class="las la-minus"></i><span>Buttons Group</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-boxshadow.html">
-                                                      <i class="las la-minus"></i><span>Box Shadow</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-colors.html">
-                                                      <i class="las la-minus"></i><span>Colors</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-cards.html">
-                                                      <i class="las la-minus"></i><span>Cards</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-carousel.html">
-                                                      <i class="las la-minus"></i><span>Carousel</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-grid.html">
-                                                      <i class="las la-minus"></i><span>Grid</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-helper-classes.html">
-                                                      <i class="las la-minus"></i><span>Helper classes</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-images.html">
-                                                      <i class="las la-minus"></i><span>Images</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-list-group.html">
-                                                      <i class="las la-minus"></i><span>list Group</span>
-                                                  </a>
-                                              </li>
-                                              <li  class="">
-                                                  <a href="../backend/ui-media-object.html">
-                                                      <i class="las la-minus"></i><span>Media</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-modal.html">
-                                                      <i class="las la-minus"></i><span>Modal</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-notifications.html">
-                                                      <i class="las la-minus"></i><span>Notifications</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-pagination.html">
-                                                      <i class="las la-minus"></i><span>Pagination</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-popovers.html">
-                                                      <i class="las la-minus"></i><span>Popovers</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-progressbars.html">
-                                                      <i class="las la-minus"></i><span>Progressbars</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-typography.html">
-                                                      <i class="las la-minus"></i><span>Typography</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-tabs.html">
-                                                      <i class="las la-minus"></i><span>Tabs</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-tooltips.html">
-                                                      <i class="las la-minus"></i><span>Tooltips</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/ui-embed-video.html">
-                                                      <i class="las la-minus"></i><span>Video</span>
-                                                  </a>
-                                              </li>
-                                      </ul>
-                                  </li>
-                                  <li class=" ">
-                                      <a href="#auth" class="collapsed" data-toggle="collapse" aria-expanded="false">
-                                          <svg class="svg-icon" id="p-dash12" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>
-                                          </svg>
-                                          <span class="ml-4">Authentication</span>
-                                          <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                                          <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                                      </a>
-                                      <ul id="auth" class="iq-submenu collapse" data-parent="#otherpage">
-                                              <li class="">
-                                                  <a href="../backend/auth-sign-in.html">
-                                                      <i class="las la-minus"></i><span>Login</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/auth-sign-up.html">
-                                                      <i class="las la-minus"></i><span>Register</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/auth-recoverpw.html">
-                                                      <i class="las la-minus"></i><span>Recover Password</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/auth-confirm-mail.html">
-                                                      <i class="las la-minus"></i><span>Confirm Mail</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/auth-lock-screen.html">
-                                                      <i class="las la-minus"></i><span>Lock Screen</span>
-                                                  </a>
-                                              </li>
-                                      </ul>
-                                  </li>
-                                  <li class="">
-                                      <a href="#form" class="collapsed svg-icon" data-toggle="collapse" aria-expanded="false">
-                                          <svg class="svg-icon" id="p-dash13" width="20" height="20"  xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                                          </svg>
-                                          <span class="ml-4">Forms</span>
-                                          <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                                          <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                                      </a>
-                                      <ul id="form" class="iq-submenu collapse" data-parent="#otherpage">
-                                          <li class="">
-                                              <a href="../backend/form-layout.html">
-                                                  <i class="las la-minus"></i><span class="">Form Elements</span>
-                                              </a>
-                                          </li>
-                                          <li class="">
-                                              <a href="../backend/form-input-group.html" class="svg-icon">
-                                                 <i class="las la-minus"></i><span class="">Form Input</span>
-                                              </a>
-                                          </li>
-                                          <li class="">
-                                              <a href="../backend/form-validation.html" class="svg-icon">
-                                                  <i class="las la-minus"></i><span class="">Form Validation</span>
-                                              </a>
-                                          </li>
-                                          <li class="">
-                                              <a href="../backend/form-switch.html" class="svg-icon">
-                                                  <i class="las la-minus"></i><span class="">Form Switch</span>
-                                              </a>
-                                          </li>
-                                          <li class="">
-                                              <a href="../backend/form-chechbox.html" class="svg-icon">
-                                                  <i class="las la-minus"></i><span class="">Form Checkbox</span>
-                                              </a>
-                                          </li>
-                                          <li class="">
-                                              <a href="../backend/form-radio.html" class="svg-icon">
-                                                  <i class="las la-minus"></i><span class="">Form Radio</span>
-                                              </a>
-                                          </li>
-                                          <li class="">
-                                              <a href="../backend/form-textarea.html" class="svg-icon">
-                                                  <i class="las la-minus"></i><span class="">Form Textarea</span>
-                                              </a>
-                                          </li>
-                                      </ul>
-                                  </li>
-                                  <li class=" ">
-                                      <a href="#table" class="collapsed" data-toggle="collapse" aria-expanded="false">
-                                          <svg class="svg-icon" id="p-dash14" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
-                                          </svg>
-                                          <span class="ml-4">Table</span>
-                                          <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                                          <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                                      </a>
-                                      <ul id="table" class="iq-submenu collapse" data-parent="#otherpage">
-                                              <li class="">
-                                                  <a href="../backend/tables-basic.html">
-                                                      <i class="las la-minus"></i><span>Basic Tables</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/table-data.html">
-                                                      <i class="las la-minus"></i><span>Data Table</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/table-tree.html">
-                                                      <i class="las la-minus"></i><span>Table Tree</span>
-                                                  </a>
-                                              </li>
-                                      </ul>
-                                  </li>
-                                  <li class=" ">
-                                      <a href="#pricing" class="collapsed" data-toggle="collapse" aria-expanded="false">
-                                          <svg class="svg-icon" id="p-dash16" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-                                          </svg>
-                                          <span class="ml-4">Pricing</span>
-                                          <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                                          <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                                      </a>
-                                      <ul id="pricing" class="iq-submenu collapse" data-parent="#otherpage">
-                                              <li class="">
-                                                  <a href="../backend/pricing.html">
-                                                      <i class="las la-minus"></i><span>Pricing 1</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/pricing-2.html">
-                                                      <i class="las la-minus"></i><span>Pricing 2</span>
-                                                  </a>
-                                              </li>
-                                      </ul>
-                                  </li>
-                                  <li class="">
-                                      <a href="../backend/timeline.html" class="svg-icon">
-                                          <svg class="svg-icon" id="p-dash016" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                          <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
-                                          </svg>
-                                          <span class="ml-4">Timeline</span>
-                                      </a>
-                                  </li>
-                                  <li class="">
-                                      <a href="../backend/pages-invoice.html" class="svg-icon">
-                                          <svg class="svg-icon" id="p-dash07" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>
-                                          </svg>
-                                          <span class="ml-4">Invoice</span>
-                                      </a>
-                                  </li>
-                                  <li class=" ">
-                                      <a href="#pages-error" class="collapsed" data-toggle="collapse" aria-expanded="false">
-                                          <svg class="svg-icon" id="p-dash17" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                          </svg>
-                                          <span class="ml-4">Error</span>
-                                          <i class="las la-angle-right iq-arrow-right arrow-active"></i>
-                                          <i class="las la-angle-down iq-arrow-right arrow-hover"></i>
-                                      </a>
-                                      <ul id="pages-error" class="iq-submenu collapse" data-parent="#otherpage">
-                                              <li class="">
-                                                  <a href="../backend/pages-error.html">
-                                                      <i class="las la-minus"></i><span>Error 404</span>
-                                                  </a>
-                                              </li>
-                                              <li class="">
-                                                  <a href="../backend/pages-error-500.html">
-                                                      <i class="las la-minus"></i><span>Error 500</span>
-                                                  </a>
-                                              </li>
-                                      </ul>
-                                  </li>
-                                  <li class="">
-                                          <a href="../backend/pages-blank-page.html">
-                                              <svg class="svg-icon" id="p-dash18" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline>
-                                              </svg>
-                                              <span class="ml-4">Blank Page</span>
-                                          </a>
-                                  </li>
-                                  <li class="">
-                                          <a href="../backend/pages-maintenance.html">
-                                              <svg class="svg-icon" id="p-dash19" width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                                              </svg>
-                                              <span class="ml-4">Maintenance</span>
-                                          </a>
-                                  </li>
-                          </ul>
-                      </li>
-                  </ul>
-              </nav>
-              <div id="sidebar-bottom" class="position-relative sidebar-bottom">
-                  <div class="card border-none mb-0 shadow-none">
-                      <div class="card-body p-0">
-                          <div class="sidebarbottom-content">
-                              <h5 class="mb-3">Task Performed</h5>
-                              <div id="circle-progress-6" class="sidebar-circle circle-progress circle-progress-primary mb-4" data-min-value="0" data-max-value="100" data-value="55" data-type="percent"></div>
-                              <div class="custom-control custom-radio mb-1">
-                                  <input type="radio" id="customRadio6" name="customRadio-1" class="custom-control-input" checked=""/>
-                                  <label class="custom-control-label" for="customRadio6">Performed task</label>
-                              </div>
-                              <div class="custom-control custom-radio">
-                                  <input type="radio" id="customRadio7" name="customRadio-1" class="custom-control-input"/>
-                                  <label class="custom-control-label" for="customRadio7">Incomplete Task</label>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-              <div class="pt-5 pb-2"></div>
-          </div>
-      </div>      <div class="iq-top-navbar">
-          <div class="iq-navbar-custom">
-              <nav class="navbar navbar-expand-lg navbar-light p-0">
-                  <div class="iq-navbar-logo d-flex align-items-center justify-content-between">
-                      <i class="ri-menu-line wrapper-menu"></i>
-                      <a href="../backend/index.html" class="header-logo">
-                          <h4 class="logo-title text-uppercase">Webkit</h4>
-      
-                      </a>
-                  </div>
-                  <div class="navbar-breadcrumb">
-                      <h5>Dashboard</h5>
-                  </div>
-                  <div class="d-flex align-items-center">
-                      <button class="navbar-toggler" type="button" data-toggle="collapse"
-                          data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
-                          aria-label="Toggle navigation">
-                          <i class="ri-menu-3-line"></i>
-                      </button>
-                      <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                          <ul class="navbar-nav ml-auto navbar-list align-items-center">
-                              <li>
-                                  <div class="iq-search-bar device-search">
-                                      <form action="#" class="searchbox">
-                                          <a class="search-link" href="#"><i class="ri-search-line"></i></a>
-                                          <input type="text" class="text search-input" placeholder="Search here..."/>
-                                      </form>
-                                  </div>
-                              </li>
-                              <li class="nav-item nav-icon search-content">
-                                  <a href="#" class="search-toggle rounded" id="dropdownSearch" data-toggle="dropdown"
-                                      aria-haspopup="true" aria-expanded="false">
-                                      <i class="ri-search-line"></i>
-                                  </a>
-                                  <div class="iq-search-bar iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownSearch">
-                                      <form action="#" class="searchbox p-2">
-                                          <div class="form-group mb-0 position-relative">
-                                              <input type="text" class="text search-input font-size-12"
-                                                  placeholder="type here to search..."/>
-                                              <a href="#" class="search-link"><i class="las la-search"></i></a>
-                                          </div>
-                                      </form>
-                                  </div>
-                              </li>
-                              <li class="nav-item nav-icon nav-item-icon dropdown">
-                                  <a href="#" class="search-toggle dropdown-toggle" id="dropdownMenuButton2"
-                                      data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                          stroke-linejoin="round" class="feather feather-mail">
-                                          <path
-                                              d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
-                                          </path>
-                                          <polyline points="22,6 12,13 2,6"></polyline>
-                                      </svg>
-                                      <span class="bg-primary"></span>
-                                  </a>
-                                  <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton2">
-                                      <div class="card shadow-none m-0">
-                                          <div class="card-body p-0 ">
-                                              <div class="cust-title p-3">
-                                                  <div class="d-flex align-items-center justify-content-between">
-                                                      <h5 class="mb-0">All Messages</h5>
-                                                      <a class="badge badge-primary badge-card" href="#">3</a>
-                                                  </div>
-                                              </div>
-                                              <div class="px-3 pt-0 pb-0 sub-card">
-                                                  <a href="#" class="iq-sub-card">
-                                                      <div class="media align-items-center cust-card py-3 border-bottom">
-                                                          <div class="">
-                                                              <img class="avatar-50 rounded-small"
-                                                                  src="../assets/images/user/01.jpg" alt="01"/>
-                                                          </div>
-                                                          <div class="media-body ml-3">
-                                                              <div class="d-flex align-items-center justify-content-between">
-                                                                  <h6 class="mb-0">Emma Watson</h6>
-                                                                  <small class="text-dark"><b>12 : 47 pm</b></small>
-                                                              </div>
-                                                              <small class="mb-0">Lorem ipsum dolor sit amet</small>
-                                                          </div>
-                                                      </div>
-                                                  </a>
-                                                  <a href="#" class="iq-sub-card">
-                                                      <div class="media align-items-center cust-card py-3 border-bottom">
-                                                          <div class="">
-                                                              <img class="avatar-50 rounded-small"
-                                                                  src="../assets/images/user/02.jpg" alt="02"/>
-                                                          </div>
-                                                          <div class="media-body ml-3">
-                                                              <div class="d-flex align-items-center justify-content-between">
-                                                                  <h6 class="mb-0">Ashlynn Franci</h6>
-                                                                  <small class="text-dark"><b>11 : 30 pm</b></small>
-                                                              </div>
-                                                              <small class="mb-0">Lorem ipsum dolor sit amet</small>
-                                                          </div>
-                                                      </div>
-                                                  </a>
-                                                  <a href="#" class="iq-sub-card">
-                                                      <div class="media align-items-center cust-card py-3">
-                                                          <div class="">
-                                                              <img class="avatar-50 rounded-small"
-                                                                  src="../assets/images/user/03.jpg" alt="03"/>
-                                                          </div>
-                                                          <div class="media-body ml-3">
-                                                              <div class="d-flex align-items-center justify-content-between">
-                                                                  <h6 class="mb-0">Kianna Carder</h6>
-                                                                  <small class="text-dark"><b>11 : 21 pm</b></small>
-                                                              </div>
-                                                              <small class="mb-0">Lorem ipsum dolor sit amet</small>
-                                                          </div>
-                                                      </div>
-                                                  </a>
-                                              </div>
-                                              <a class="right-ic btn btn-primary btn-block position-relative p-2" href="#"
-                                                  role="button">
-                                                  View All
-                                              </a>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </li>
-                              <li class="nav-item nav-icon nav-item-icon dropdown">
-                                  <a href="#" class="search-toggle dropdown-toggle" id="dropdownMenuButton"
-                                      data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                          stroke-linejoin="round" class="feather feather-bell">
-                                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                                      </svg>
-                                      <span class="bg-primary "></span>
-                                  </a>
-                                  <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                      <div class="card shadow-none m-0">
-                                          <div class="card-body p-0 ">
-                                              <div class="cust-title p-3">
-                                                  <div class="d-flex align-items-center justify-content-between">
-                                                      <h5 class="mb-0">Notifications</h5>
-                                                      <a class="badge badge-primary badge-card" href="#">3</a>
-                                                  </div>
-                                              </div>
-                                              <div class="px-3 pt-0 pb-0 sub-card">
-                                                  <a href="#" class="iq-sub-card">
-                                                      <div class="media align-items-center cust-card py-3 border-bottom">
-                                                          <div class="">
-                                                              <img class="avatar-50 rounded-small"
-                                                                  src="../assets/images/user/01.jpg" alt="01"/>
-                                                          </div>
-                                                          <div class="media-body ml-3">
-                                                              <div class="d-flex align-items-center justify-content-between">
-                                                                  <h6 class="mb-0">Emma Watson</h6>
-                                                                  <small class="text-dark"><b>12 : 47 pm</b></small>
-                                                              </div>
-                                                              <small class="mb-0">Lorem ipsum dolor sit amet</small>
-                                                          </div>
-                                                      </div>
-                                                  </a>
-                                                  <a href="#" class="iq-sub-card">
-                                                      <div class="media align-items-center cust-card py-3 border-bottom">
-                                                          <div class="">
-                                                              <img class="avatar-50 rounded-small"
-                                                                  src="../assets/images/user/02.jpg" alt="02"/>
-                                                          </div>
-                                                          <div class="media-body ml-3">
-                                                              <div class="d-flex align-items-center justify-content-between">
-                                                                  <h6 class="mb-0">Ashlynn Franci</h6>
-                                                                  <small class="text-dark"><b>11 : 30 pm</b></small>
-                                                              </div>
-                                                              <small class="mb-0">Lorem ipsum dolor sit amet</small>
-                                                          </div>
-                                                      </div>
-                                                  </a>
-                                                  <a href="#" class="iq-sub-card">
-                                                      <div class="media align-items-center cust-card py-3">
-                                                          <div class="">
-                                                              <img class="avatar-50 rounded-small"
-                                                                  src="../assets/images/user/03.jpg" alt="03"/>
-                                                          </div>
-                                                          <div class="media-body ml-3">
-                                                              <div class="d-flex align-items-center justify-content-between">
-                                                                  <h6 class="mb-0">Kianna Carder</h6>
-                                                                  <small class="text-dark"><b>11 : 21 pm</b></small>
-                                                              </div>
-                                                              <small class="mb-0">Lorem ipsum dolor sit amet</small>
-                                                          </div>
-                                                      </div>
-                                                  </a>
-                                              </div>
-                                              <a class="right-ic btn btn-primary btn-block position-relative p-2" href="#"
-                                                  role="button">
-                                                  View All
-                                              </a>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </li>
-                              <li class="nav-item nav-icon dropdown caption-content">
-                                  <a href="#" class="search-toggle dropdown-toggle  d-flex align-items-center" id="dropdownMenuButton4"
-                                      data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                      <img src="../assets/images/user/1.jpg" class="img-fluid rounded-circle" alt="user"/>
-                                      <div class="caption ml-3">
-                                          <h6 class="mb-0 line-height">Savannah Nguyen<i class="las la-angle-down ml-2"></i></h6>
-                                      </div>
-                                  </a>                            
-                                  <ul class="dropdown-menu dropdown-menu-right border-none" aria-labelledby="dropdownMenuButton">
-                                      <li class="dropdown-item d-flex svg-icon">
-                                          <svg class="svg-icon mr-0 text-primary" id="h-01-p" width="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                          </svg>
-                                          <a href="../app/user-profile.html">My Profile</a>
-                                      </li>
-                                      <li class="dropdown-item d-flex svg-icon">
-                                          <svg class="svg-icon mr-0 text-primary" id="h-02-p" width="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                          </svg>
-                                          <a href="../app/user-profile-edit.html">Edit Profile</a>
-                                      </li>
-                                      <li class="dropdown-item d-flex svg-icon">
-                                          <svg class="svg-icon mr-0 text-primary" id="h-03-p" width="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                          </svg>
-                                          <a href="../app/user-account-setting.html">Account Settings</a>
-                                      </li>
-                                      <li class="dropdown-item d-flex svg-icon">
-                                          <svg class="svg-icon mr-0 text-primary" id="h-04-p" width="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                          </svg>
-                                          <a href="../app/user-privacy-setting.html">Privacy Settings</a>
-                                      </li>
-                                      <li class="dropdown-item  d-flex svg-icon border-top">
-                                          <svg class="svg-icon mr-0 text-primary" id="h-05-p" width="20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                          </svg>
-                                          <a href="../backend/auth-sign-in.html">Logout</a>
-                                      </li>
-                                  </ul>
-                              </li>
-                          </ul>
-                      </div>
-                  </div>
-              </nav>
-          </div>
-      </div>   
+      <Sidebar/>
+      <TopBar/>   
          <div class="content-page">
      <div class="container-fluid">
         <div class="row">
@@ -1026,65 +496,71 @@ function Startproject({ projectId })
                         <li class="nav-item">
                            <a class="nav-link" id="pills-profile-tab-fill" data-toggle="pill" href="#pills-profile-fill" role="tab" aria-controls="pills-profile" aria-selected="false">Project Estimation</a>
                         </li>
-                       
+                        <li class="nav-item">
+                           <a class="nav-link" id="pills-contact-tab-fill" data-toggle="pill" href="#pills-contact-fill" role="tab" aria-controls="pills-contact" aria-selected="false">Output</a>
+                        </li>
                      </ul>
                      <div class="tab-content" id="pills-tabContent-1">
                         <div class="tab-pane fade" id="pills-home-fill" role="tabpanel" aria-labelledby="pills-home-tab-fill">
-                        <div class="card">
+                        <div className="container">
+                        <div class="row">
+            <div class="col-sm-12">
+               <div class="card">
                   <div class="card-header d-flex justify-content-between">
                      <div class="header-title">
-                        <h4 class="card-title">Assign Team</h4>
+                        <h4 class="card-title">Team Selection</h4>
                      </div>
-                  </div> 
-                                      <form onSubmit={handleSubmit2}>
-
+                  </div>
                   <div class="card-body">
+                     <p>Assign the project to developers by checked on them </p>
                      <div class="table-responsive">
-
                         <table id="datatable" class="table data-table table-striped">
                            <thead>
                               <tr class="ligth">
-                                 <th>ID</th>
                                  <th>Name</th>
                                  <th>Email</th>
                                  <th>Expertise</th>
-                                 <th>Select</th>
+                                 <th>Asssigned</th>
                               </tr>
                            </thead>
                            <tbody>
-
-                           {developers.map(developer => (
-                              <tr key={developer.userid}
-                              >
-                                 <td>{`${developer.userid}`}</td>
-                                 <td htmlFor={`${developer.name}`}>{developer.name}</td>
-                                 <td>{`${developer.email}`}</td>
-                                 <td>HMU</td>
-                                 <td style={{ textAlign: "center" }}><input type='checkbox'
-                                 value={developer.userid}
-                                 id={`developer-${developer.userid}`}
-                                 onChange={() => handleCheckboxChange(developer.userid)}
-                                 /></td>
-                              </tr>
-                           ))}
+                           { 
+                           developers.map((developer,index) => (
+                            
+                            <tr key={developer.userid}>
+                              <td>{developer.userid}</td>
+                              <td>{developer.name}</td>
+                              <td hidden>{developer.email}</td>
+                              <td>{developer.expertise}</td>
+                                <td>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={Team.some(member => member.developer_id === developer.userid) || assignedDevs.has(developer.userid)}
+                                    onChange={() => assignteam(developer.userid)} 
+                                  />
+                                </td>
+                              
+                            </tr>
+                             ))}
                            </tbody>
                            <tfoot>
                               <tr>
-                                 <th>ID</th>
                                  <th>Name</th>
                                  <th>Email</th>
                                  <th>Expertise</th>
-                                 <th>Select</th>
+                                 <th>Asssigned</th>
                               </tr>
                            </tfoot>
                         </table>
-
-
                      </div>
-                  </div>      <button type="submit" class="btn btn-primary">Assign Team</button>
-             </form>
+                  </div>
+               </div>
+            </div>
+         </div>
 
-               </div>                             
+</div>
+
+           
                         </div>
                         <div class="tab-pane fade" id="pills-profile-fill" role="tabpanel" aria-labelledby="pills-profile-tab-fill">
                       
@@ -1187,6 +663,26 @@ function Startproject({ projectId })
       <option value="PP">Poker Planning (PP)</option>
       <option value="FC">Fibonacci Series (FC)</option>
     </select>
+    {selectedOption === 'c1b' || selectedOption === 'c1i' ||selectedOption === 'c1a' || selectedOption === 'c2' ? (
+    <select
+      id="method-select"
+      value={selectedOptionforcocomo}
+      onChange={(e) => setselectedOptionforcocomo(e.target.value)}
+      className="form-control"
+      style={{
+        width: '250px',
+        height: '45px',
+        borderRadius: '8px',
+        border: '1px solid #ddd',
+        padding: '5px 10px',
+        boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.1)',
+      }}
+    >
+<option value="kloc">Using KLOC</option>
+<option value="fp">Using Functional Point</option>
+
+    </select>
+    ):null}
   </div>
   {/* <button
     onClick={() => console.log('Save Selection')}
@@ -1250,7 +746,8 @@ function Startproject({ projectId })
 // </select>
 //                 </div>
             ):userrole === 3 ?(
-                <>
+ <>
+               
                 <div></div>
                 <table class="table table-hover ">
                 <thead>
@@ -1277,24 +774,47 @@ function Startproject({ projectId })
                                     onChange={(e) => handleSelectChange(e, input.input_id, 'complexity')}
                                 >
                                     <option disabled selected>Select Complexity</option>
-                                    {project.method === "PP" && project.estimation_technique === "FP" ?(
+                                    {project.method === "PP" && input.input_category.includes("Question") ?(
                                         <> 
-                                        <option value="Low">Low</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="High">High</option>
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
                                         </>
                                  
                                     ):project.method === "FC" && project.estimation_technique === "FP"?(
-                                        <>
-                                        
-                                       
-{assigned_weights.map((item) => (
-          <option key={item.weight_id} value={item.weight}>
-            {item.weight} 
-          </option>
-        ))}
+                                        <> 
+                                        {assigned_weights.map((item) => (
+                                                <option key={item.weight_id} value={item.weight}>
+                                                    {item.weight} 
+                                                </option>
+                                                ))}
                                         </>
-                                    ):null}
+                                    ):project.method === "FC" && project.estimation_technique === "UC"?(
+                                        <> 
+                                        {assigned_weights.map((item) => (
+                                                <option key={item.weight_id} value={item.weight}>
+                                                    {item.weight} 
+                                                </option>
+                                                ))}
+                                        </>
+                                    ):project.method === "PP" && project.estimation_technique === "FP" ?(
+                                      <> 
+                                      <option value="Low">Low</option>
+                                      <option value="Medium">Medium</option>
+                                      <option value="High">High</option>
+                                      </>
+                               
+                                  ):project.method === "PP" && project.estimation_technique === "UC"?(
+                                    <> 
+                                    < option value="Simple">Simple</option>
+                                    <option value="Average">Average</option>
+                                    <option value="Complex">Complex</option>
+                                    </>
+
+                                ):null}
                                     
                                 </select>
                             </td>
@@ -1409,11 +929,10 @@ function Startproject({ projectId })
       </button>
     </div>
     {renderHistoryTable()}
-    <button
-  {...(selectedOption2 === "FC"
-    ? { "data-toggle": "modal", "data-target": "#exampleModalCenter" }
-    : {})}
-  onClick={selectedOption2 === "FC" ? undefined : handleSaveInputs} // Set onClick to undefined if "FC"
+   <button
+  data-toggle={selectedOption2 === "FC" ? "modal" : undefined}
+  data-target={selectedOption2 === "FC" ? "#exampleModalCenter" : undefined}
+  onClick={selectedOption2 === "FC" ? undefined : handleSaveInputs}
   style={{
     padding: "10px 20px",
     fontSize: "16px",
@@ -1430,20 +949,143 @@ function Startproject({ projectId })
 
 
 
+
   </div>
 
 ) : selectedOption === 'UC' ? (
   // Else if: specific UI for "OtherOption1"
   <div className='card-body' style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
-    <h3>Usecase Selected</h3>
-    <p>This is the UI for "Usecase".</p>
+  
+      <h2 className="text-center mb-4">Usecase Input Manager</h2>
+      
+        
+          <table className="table table-bordered table-hover" id="usecaseTable">
+            
+            <thead className="table-primary">
+              <tr>
+                <th scope="col">Use Case Name</th>
+                <th scope="col" className="text-center">Action
+                <button className="add-row-btn" onClick={addRow} style={{  top: '12px' , color: '#007bff', backgroundColor: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>
+          <i className="bi bi-plus"></i>
+        </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              {renderPage().map((useCase, index) => (
+                <tr key={index}>
+                  <td>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={useCase.name}
+                      onChange={(e) => handleChange(index, e.target.value)}
+                      placeholder="Enter use case name"
+                    />
+                  </td>
+                  <td className="text-center">
+                    <i
+                      className="bi bi-trash text-danger delete-row-btn"
+                      onClick={() => deleteRow(index)}
+                      style={{ cursor: 'pointer' }}
+                    ></i>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            <button className="btn btn-success save-btn" onClick={saveTable}>Save</button>
+            <nav>
+              <ul className="pagination" id="pagination">
+                {pagination.map(page => (
+                  <li key={page} className={`page-item ${page === currentPage ? 'active' : ''}`}>
+                    <a className="page-link" href="#" onClick={() => changePage(page)}>{page}</a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+       
+   
   </div>
 ) : selectedOption === 'c1b' ? (
   // Else if: specific UI for "OtherOption2"
-  <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
-    <h3>Cocomo Basic Selected</h3>
-    <p>This is the UI for "Cocomo Basic". Customize as needed.</p>
-  </div>
+  <div className='card-body' style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
+  
+  <h2 className="text-center mb-4">Cocomo I(Basic) Input Manager</h2>
+  
+  {selectedOptionforcocomo === 'fp' ? (
+  <>
+    <table className="table table-bordered table-hover" id="usecaseTable">
+      <thead className="table-primary">
+        <tr>
+          <th scope="col">Use Case Name</th>
+          <th scope="col" className="text-center">
+            Action
+            <button
+              className="add-row-btn"
+              onClick={addRow}
+              style={{
+                top: '12px',
+                color: '#007bff',
+                backgroundColor: 'transparent',
+                border: 'none',
+                fontSize: '1.5rem',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="bi bi-plus"></i>
+            </button>
+          </th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        {renderPage().map((useCase, index) => (
+          <tr key={index}>
+            <td>
+              <input
+                type="text"
+                className="form-control"
+                value={useCase.name}
+                onChange={(e) => handleChange(index, e.target.value)}
+                placeholder="Enter use case name"
+              />
+            </td>
+            <td className="text-center">
+              <i
+                className="bi bi-trash text-danger delete-row-btn"
+                onClick={() => deleteRow(index)}
+                style={{ cursor: 'pointer' }}
+              ></i>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <div className="d-flex justify-content-between align-items-center mt-3">
+      <button className="btn btn-success save-btn" onClick={saveTable}>
+        Save
+      </button>
+      <nav>
+        <ul className="pagination" id="pagination">
+          {pagination.map((page) => (
+            <li key={page} className={`page-item ${page === currentPage ? 'active' : ''}`}>
+              <a className="page-link" href="#" onClick={() => changePage(page)}>
+                {page}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  </>
+) : (
+  <input type="number" placeholder="Enter the KLOC" />
+)}
+
+
+</div>
 ) : selectedOption === 'c1i' ? (
     // Else if: specific UI for "OtherOption2"
     <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
@@ -1486,6 +1128,41 @@ function Startproject({ projectId })
 </div>
                             
                            </div>
+                        </div>
+                     </div>
+                     <div class="tab-pane fade" id="pills-contact-fill" role="tabpanel" aria-labelledby="pills-contact-tab-fill">
+                        <div class="card">
+                          <div class="card-header d-flex justify-content-between">
+                            
+                            <div className="container mt-5">
+      <h1 className="text-center mb-4">Project Estimation</h1>
+      <div className="card mx-auto shadow" style={{ maxWidth: "500px" }}>
+        <div className="card-body">
+          <h5 className="card-title text-center mb-4">Calculated Values</h5>
+          {output.map((item) => (
+            <>
+         <h6 className="card-title mb-4">{item.estimation_technique}</h6>
+          <ul className="list-group list-group-flush mb-4">
+            <li className="list-group-item d-flex justify-content-between">
+              <span>Effort (Person-Months):</span>
+              <span>{item.effort}</span>
+            </li>
+            <li className="list-group-item d-flex justify-content-between">
+              <span>Time (Months):</span>
+              <span>{item.time}</span>
+            </li>
+            <li className="list-group-item d-flex justify-content-between">
+              <span>Cost (USD):</span>
+              <span>${item.cost}</span>
+            </li>
+          </ul>   
+            </>
+
+          ))}
+        </div>
+      </div>
+    </div>
+                          </div> 
                         </div>
                      </div>
                   </div>
@@ -1565,8 +1242,8 @@ function Startproject({ projectId })
 
     try {
         // Send the updated field to the server
-        await axios.post(`${server_url}/api/project/1/updateinput`, { id: inputId, field, value: updatedValue,developer_id:userid  });
-        const response =  await axios.get(`${server_url}/api/project/1/checkstatus?id=${inputId}`);
+        await axios.post(`${server}/api/project/${id}/updateinput`, { id: inputId, field, value: updatedValue,developer_id:userid  });
+        const response =  await axios.get(`${server}/api/project/${id}/checkstatus?id=${inputId}`);
         console.log(response.data.devresponse);
         if (response.data.devresponse.some((value) => value === userid)) {
              alert("hello");              

@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 // Initialize multer with the defined storage
 const upload = multer({ storage: storage });
 // Route to register a new user
-router.post('/register', user.registerUser);
+router.post('/register',upload.single("user_profile"), user.registerUser);
 
 // Route to get all users
 router.get('/users', user.getAllUsers);
@@ -35,7 +35,9 @@ router.get('/getowner', user.getowners);
 router.get('/project/allprojects', project.allproject );
 router.get('/project/devprojects', project.allproject );
 
-router.post('/project/team', project.team);
+router.get('/project/:project_id/team', project.Assigned_Members);
+router.post('/project/:project_id/unassignteam', project.UnAssigned_Team);
+
 router.get('/developers', user.getdeveloper);
 router.post('/project/assignteam', project.team);
 router.get('/getdeveloper', user.getdeveloper);
@@ -47,5 +49,7 @@ router.post('/project/:project_id/updateinputstatus', fp.updatestatus);
 router.post("/project/:project_id/addmessages", upload.single("audio"), msg.messagesend);
 router.get("/project/:project_id/getmessages", msg.getmessage);
 router.get("/project/:project_id/checkstatus", pokerplanning.checkAllStatus.bind(pokerplanning));
+router.get("/project/:project_id/fpcalculate", fp.fpcalculate);
+router.get("/project/:project_id/fpoutput", pokerplanning.outputvalues);
 
 module.exports = router;

@@ -3,27 +3,27 @@ const db = require('../config');  // Import the DB connection
 const functionPoints = {
     EI: {
       Low: 4,
-      Average: 5,
+      Medium: 5,
       High: 7,
     },
     EO: {
       Low: 5,
-      Average: 6,
+      Medium: 6,
       High: 7,
     },
     EQ: {
       Low: 3,
-      Average: 4,
+      Medium: 4,
       High: 5,
     },
     ILF: {
       Low: 7,
-      Average: 10,
+      Medium: 10,
       High: 15,
     },
     EIF: {
       Low: 5,
-      Average: 7,
+      Medium: 7,
       High: 10,
     },
   };
@@ -31,9 +31,9 @@ const functionPoints = {
   function calculateUFP(inputCategory, complexity) {
     // Check if the input category and complexity are valid
     if (!functionPoints[inputCategory] || !functionPoints[inputCategory][complexity]) {
+      console.log(inputCategory,complexity);
       throw new Error('Invalid input category or complexity');
     }
-  
     // Return the function points for the given category and complexity
     return functionPoints[inputCategory][complexity];
   }
@@ -77,8 +77,10 @@ class fp {
             res.status(500).json({ message: 'Error updating field', error: err.message });
         }
     }
-    async fpcalculate(req, res) {
-        const { project_id } = req.body;
+    async fpcalculate(project,res,estimation_id) {
+        const  project_id = project;
+        const  estimationid = estimation_id;
+
       
         // If project_id is missing in the request body
         // if (!project_id) {
@@ -88,16 +90,17 @@ class fp {
         try {
           // Query the MySQL database to get all input categories and complexities for the project
           const [rows] = await db.execute(
-            'SELECT input_category, complexity FROM fp_inputss WHERE project_id = ?',
-            [1]
+            'SELECT input_category, complexity FROM inputs WHERE project_id = ? AND input_category NOT LIKE "%Question%" AND estimation_id = ?',
+            [project_id,estimationid]
           );
       
           if (rows.length === 0) {
-            return res.status(404).json({ error: 'Project not found' });
+            return null;
           }
       
           // Initialize a variable to accumulate the total UFP
           let totalUFP = 0;
+          let TF = 0;
       
           // Loop through each row and calculate the UFP
           for (let i = 0; i < rows.length; i++) {
@@ -108,22 +111,61 @@ class fp {
               console.error(`Invalid data at index ${i}: input_category or complexity is missing.`);
               continue; // Skip invalid rows
             }
-      
-            // Calculate UFP for this row
-            const ufp = calculateUFP(input_category, complexity);
-      
+           
+           
+            else{
+               // Calculate UFP for this row
+            var ufp = calculateUFP(input_category, complexity);
+            }
             // Add the UFP for this input to the total UFP
             totalUFP += ufp;
           }
-      
+          const [project_check] = await db.execute(
+            'SELECT * FROM estimations WHERE estimation_id = ? and estimation_method = "FC"',
+            [estimationid]
+          );
+          if(project_check.length > 0)
+          {
+            var [project_method] = await db.execute(
+              'SELECT sum(complexity) as ufp FROM inputs WHERE project_id = ? AND estimation_id = ?  AND input_category NOT LIKE "%Question%"',
+              [project_id,estimationid]
+            );
+            totalUFP += project_method[0]["ufp"];
+
+          }
+          const [project_method2] = await db.execute(
+            'SELECT sum(complexity) as tf FROM inputs WHERE project_id = ? and and estimation_id = ?  input_category like "%Question%"',
+            [project_id,estimationid]
+          );
+          
+
+           TF += project_method2[0]["tf"];
+           var CAF = 0.65 + (0.01 * TF);
+           var FP = totalUFP * CAF;
+           const [avg_effort] = await db.execute('SELECT AVG(Effort_person_month) as avge FROM `fp_historical_data`');
+           const [team_members] = await db.execute('SELECT count(team_id) as tt FROM team where project_id = ?',[project_id]);
+           const [avg_cost] = await db.execute('SELECT AVG(cost) as avgc FROM `fp_historical_data`');
+           const [avg_fp] = await db.execute('SELECT AVG(FP) as avgf FROM `fp_historical_data`');
+
+           console.log(avg_effort,team_members);
+           var Effort = avg_effort[0]["avge"] * FP;
+           var Time = avg_effort[0]["avge"] / team_members[0]["tt"];
+           var cost_per_fp = avg_cost[0]["avgc"] / avg_fp[0]["avgf"];
+           var cost = cost_per_fp * FP;
+           if(FP)
+           {
+            const [save_ouput] = await db.execute('INSERT INTO `project_estimation`(`project_id`, `estimation_technique_id`, `effort`, `time`, `cost`) VALUES (?,?,?,?,?)',
+              [project_id,estimationid,Effort,Time,cost]);
+           }
           // Send the total UFP in the response
-          res.json({ totalUFP });
       
         } catch (error) {
           console.error('Database error:', error);
-          res.status(500).json({ error: 'An error occurred while processing your request' });
         }
       }
+
+     
+      
 }
 
 module.exports = new fp();
