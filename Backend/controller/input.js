@@ -1,6 +1,6 @@
 // controllers/fp.js
 const db = require('../config');  // Import the DB connection
-const questions = [
+const fp_questions = [
     { category: "External Inputs", question: "How many user input screens or transactions exist?" },
     { category: "External Inputs", question: "How many unique data fields are captured through user inputs?" },
     { category: "External Outputs", question: "How many unique reports or outputs are generated?" },
@@ -16,6 +16,36 @@ const questions = [
     { category: "Error Handling", question: "How many error messages, notifications, or prompts are displayed to the user?" },
     { category: "Data Transformation", question: "How many business rules or data transformations are applied during processing?" },
   ];
+
+  const uc_question = [
+    { question: "Does the system require complex internal processing?", category: "TCF" },
+    { question: "Is the system heavily distributed?", category: "TCF" },
+    { question: "Are performance objectives critical?", category: "TCF" },
+    { question: "Will the system be used across multiple platforms?", category: "TCF" },
+    { question: "Is the system designed to be highly reusable?", category: "TCF" },
+    { question: "Does the system include complex data entry requirements?", category: "TCF" },
+    { question: "Does the system require significant user interaction?", category: "TCF" },
+    { question: "Are the business rules highly complex?", category: "TCF" },
+    { question: "Will the system interface with other applications?", category: "TCF" },
+    { question: "Does the system need to support concurrent users or processes?", category: "TCF" },
+    { question: "Does the system require advanced security or encryption measures?", category: "TCF" },
+    { question: "Does the system require high reliability or uptime?", category: "TCF" },
+    { question: "Will the system process large volumes of data?", category: "TCF" },
+    { question: "Does the team have prior experience with the development platform?", category: "ECF" },
+    { question: "Is the team familiar with the business domain?", category: "ECF" },
+    { question: "Are the requirements well-documented and stable?", category: "ECF" },
+    { question: "Does the team have access to the required tools and technologies?", category: "ECF" },
+    { question: "Is there strong customer involvement throughout the project?", category: "ECF" },
+    { question: "Is the project timeline realistic?", category: "ECF" },
+    { question: "Are the development resources (e.g., hardware, software) adequate?", category: "ECF" },
+    { question: "Does the project have strong management support?", category: "ECF" },
+    { question: "Is the development team experienced and skilled?", category: "ECF" },
+    { question: "Are there clear and concise communication channels?", category: "ECF" },
+    { question: "Are third-party dependencies minimal or manageable?", category: "ECF" },
+    { question: "Does the development environment promote efficiency?", category: "ECF" },
+    { question: "Are testing and quality assurance processes well-defined?", category: "ECF" }
+  ];
+  
 class inputController {  // Change class name to FpController (uppercase 'F')
     // async insertinput(req, res) {
     //     const inputs = req.body; // Expecting the payload as the object structure you've shared
@@ -96,12 +126,20 @@ class inputController {  // Change class name to FpController (uppercase 'F')
         const projectId = req.params.project_id; // Get `project_id` from URL parameter
         const selectedOption2 = req.body.selectedOption2;
         const selectedOption = req.body.selectedOption;
-        const selectedweights = req.body.selectedSwitches;
+        const selectedweights = req.body.selectedSwitches ?? null;
+        const secondary_technique = req.body.primary_technique ?? ""; // Assuming `inputs` is sent as part of the payload
+        
     
         try {
+            // if (!req.body.inputs || !req.body.selectedOption2 || !req.body.selectedOption || !req.body.primary_technique) {
+            //     console.log("Missing field in request:", req.body);
+            //     return res.status(400).json({ error: "Missing required fields" });
+            //   }
+              
+            console.log(inputs);
             // Validate inputs format
-            console.log(selectedweights);
-            if (typeof inputs !== 'object' || inputs === null) {
+            if ((typeof inputs !== 'object' || inputs === null)) {
+                console.log(inputs);
                 return res.status(400).json({
                     message: 'Invalid input format. Expected an object with categories as keys.'
                 });
@@ -125,18 +163,25 @@ class inputController {  // Change class name to FpController (uppercase 'F')
                
                 }
             }
-            // Update the project with selected options
-            const [estimation] = await db.execute(
-                'UPDATE project SET estimation_technique = ?, method = ? WHERE project_id = ?',
-                [selectedOption, selectedOption2, projectId]
+            // Add Estimation for  the project with selected options
+            console.log(projectId,selectedOption,secondary_technique, selectedOption2);
+            const [verify_estimation] = await db.execute(
+                'select * from estimations where project_id = ? and primary_technique_id = ? and secondary_technique_id = ? and estimation_method = ?',
+                [projectId,selectedOption,secondary_technique, selectedOption2, ]
             );
+            if(verify_estimation.length <= 0)
+            {
+                var [estimation] = await db.execute(
+                'INSERT INTO `estimations`(`project_id`, `primary_technique_id`, `secondary_technique_id`, `estimation_method`) VALUES (?,?,?,?)',
+                [projectId,selectedOption,secondary_technique, selectedOption2, ]
+                );
     
-            // If project update succeeds, handle FP-specific logic
-            if (estimation.changedRows > 0) {
-                if (selectedOption === "FP" && selectedOption2 === "PP") {
-                    await this.fp_questions(projectId, selectedOption2);
-                }
             }
+
+            const [latest_estimation] = await db.execute(
+                'SELECT * FROM estimations WHERE project_id= ? order by estimation_id DESC limit 1',
+                [projectId]
+            );
     
             // Fetch all developers associated with the project
             const [teamResult] = await db.execute(
@@ -149,22 +194,34 @@ class inputController {  // Change class name to FpController (uppercase 'F')
                     message: 'No developers found for this project.'
                 });
             }
-    
+        
             // Transform the inputs object into a flat array
             const transformedInputs = [];
+
             for (const category in inputs) {
                 if (Array.isArray(inputs[category])) {
+                    // Jab input ek array ho
                     inputs[category].forEach(value => {
+                        console.log(category, value, projectId);
                         transformedInputs.push({ category, value, projectId });
+                    });
+                } else if (typeof inputs[category] === 'object' && inputs[category] !== null) {
+                    // Jab input ek object ka array ho
+                    Object.values(inputs).forEach(item => {
+                        if (item.name) {
+                            console.log(item.name, projectId);
+                            transformedInputs.push({ category: selectedOption, value: item.name, projectId });
+                        }
                     });
                 }
             }
+                        
     
             // Verify transformed inputs
             console.log('Transformed Inputs:', transformedInputs);
     
             // Prepare the queries
-            const fpQuery = 'INSERT INTO inputs (input_category, input_name, project_id) VALUES (?, ?, ?)';
+            const fpQuery = 'INSERT INTO inputs (input_category, input_name, project_id,estimation_id) VALUES (?, ?, ?, ?)';
             const nfpQuery = 'INSERT INTO fp_inputss (input_id, developer_id, spell) VALUES (?, ?, ?)';
     
             // Insert the inputs into the `inputs` table and associate with developers
@@ -173,22 +230,40 @@ class inputController {  // Change class name to FpController (uppercase 'F')
                 const [fpResult] = await db.execute(fpQuery, [
                     input.category, 
                     input.value, 
-                    input.projectId
+                    input.projectId,
+                    latest_estimation[0].estimation_id
                 ]);
     
                 console.log('Inserted into inputs:', fpResult);
-    
-                // Insert into `fp_inputss` table for each developer
-                for (const developer of teamResult) {
-                    const [nfpResult] = await db.execute(nfpQuery, [
-                        fpResult.insertId, 
-                        developer.developer_id, 
-                        1 // Assuming `spell` is set to `1`
-                    ]);
-                    console.log('Inserted into fp_inputss for developer:', nfpResult);
+                if(selectedOption2 == "PP" || selectedOption2 == "FC")
+                {
+                    // Insert into `fp_inputss` table for each developer
+                    for (const developer of teamResult) {
+                        const [nfpResult] = await db.execute(nfpQuery, [
+                            fpResult.insertId, 
+                            developer.developer_id, 
+                            1 // Assuming `spell` is set to `1`
+                        ]);
+                        console.log('Inserted into fp_inputss for developer:', nfpResult);
+                    }
                 }
+             
             }
-    
+        
+                // If project update succeeds, handle FP-specific logic
+                if (verify_estimation.length <= 0) {
+                    if (selectedOption === "FP") {
+                        await this.fp_questions(projectId,selectedOption2,fp_questions,latest_estimation[0].estimation_id);
+                    }
+                    else if(selectedOption === "UC")
+                    {
+                        await this.fp_questions(projectId,selectedOption2,uc_question,latest_estimation[0].estimation_id);
+                    }
+                    else if(selectedOption === "c1b" & secondary_technique =="FP")
+                    {
+                        await this.fp_questions(projectId,selectedOption2,fp_question,latest_estimation[0].estimation_id);
+                    }
+                }
             // Send success response
             res.status(200).json({
                 message: 'All inputs saved successfully in both tables'
@@ -222,7 +297,9 @@ class inputController {  // Change class name to FpController (uppercase 'F')
         try {
             // Execute the query to fetch inputs based on projectId and developerId
             const [result] = await db.execute(query, [projectId, developer_id]);
-            const [project] = await db.execute('select * from project where project_id = ?', [projectId]);
+            const [project] = await db.execute(
+                'SELECT * FROM estimations WHERE project_id= ? order by estimation_id DESC limit 1',
+                 [projectId]);
             const [weights] =  await db.execute(
                 'select * from fp_weights where project_id = ?',
                 [projectId]
@@ -270,7 +347,7 @@ class inputController {  // Change class name to FpController (uppercase 'F')
     }
 }
 
-    async fp_questions(projectid,method)
+    async fp_questions(projectid,method,savingqustion,estimation_id)
     {
         try{
              // Fetch all developers associated with the project
@@ -279,13 +356,13 @@ class inputController {  // Change class name to FpController (uppercase 'F')
              if (!teamResult || teamResult.length === 0) {
                  return res.status(404).json({ message: 'No developers found for this project.' });
              }
-                for(const ques of questions)
+                for(const ques of savingqustion)
                 {
                      // Prepare the queries for both tables
-                    const fpQuery = 'INSERT INTO inputs (input_category, input_name, project_id) VALUES (?, ?, ?)';
+                    const fpQuery = 'INSERT INTO inputs (input_category, input_name, project_id,estimation_id) VALUES (?, ?,?, ?)';
                     const nfpQuery = 'INSERT INTO fp_inputss (input_id, developer_id,spell) VALUES (?, ?,?)';
-                    const [fpResult] = await db.execute(fpQuery, [ques.category, ques.question, projectid]);
-                    if(method.selectedOption2 === "PP")
+                    const [fpResult] = await db.execute(fpQuery, [ques.category+"(Question)", ques.question, projectid,estimation_id]);
+                    if(method === "PP")
                     {
                         for (const developer of teamResult) {
                         // Insert into nfp_inputss table (developer association with input)

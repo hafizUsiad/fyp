@@ -1,23 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
 import "bootstrap-icons/font/bootstrap-icons.css";
-import server_url from "../../serverconfig";
+import {server} from "../../serverconfig";
 import axios from "axios";
 
 function ChatBox() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [userId] = useState(1);
-  const [projectId] = useState(1);
+  var {id} = useParams();
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const mediaRecorderRef = useRef(null);
 
   const toggleModal = () => setIsModalOpen(!isModalOpen);
+  var userdetail = sessionStorage.getItem("userdetail");
+    if (userdetail) {
+        // Parse the JSON string into a JavaScript object
+        var parsedUserDetail = JSON.parse(userdetail);
+      
+        // Access the user_role property
+        var userId = parsedUserDetail.userid;
+
+    }
 
   const fetchMessages = async () => {
     try {
-      const response = await axios.get(`${server_url}/api/project/1/getmessages`);
+      const response = await axios.get(`${server}/api/project/${id}/getmessages`);
       setMessages(response.data);
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -30,7 +39,7 @@ function ChatBox() {
     try {
       let formData = new FormData();
       formData.append("sender_id", userId);
-      formData.append("project_id", projectId);
+      formData.append("project_id", id);
       formData.append("message_text", messageText);
       formData.append("message_type", messageType);
 
@@ -38,7 +47,7 @@ function ChatBox() {
         formData.append("audio", audioData);
       }
 
-      const response = await axios.post(`${server_url}/api/project/1/addmessages`, formData, {
+      const response = await axios.post(`${server}/api/project/${id}/addmessages`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -47,11 +56,11 @@ function ChatBox() {
         {
           id: response.data.id,
           sender_id: userId,
-          project_id: projectId,
+          project_id: id,
           message_text: messageText,
           message_type: messageType,
           timestamp: new Date().toISOString(),
-          audio: response.data.audioPath ? `${server_url}/${response.data.audioPath}` : null,
+          audio: response.data.audioPath ? `${server}/${response.data.audioPath}` : null,
         },
       ]);
       setNewMessage("");
@@ -197,7 +206,7 @@ function ChatBox() {
                           >{message.message_text}</p>
                         ) : (
                           <audio controls>
-                            <source src={`${server_url}/${message.voice_note_url}`} type="audio/mp3" />
+                            <source src={`${server}/${message.voice_note_url}`} type="audio/mp3" />
                             Your browser does not support the audio element.
                           </audio>
                         )}
